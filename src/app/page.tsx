@@ -294,12 +294,38 @@ export default function Home() {
         )}
       </div>
 
-      {/* Footer trust signal */}
-      <footer className="text-center py-6 px-4">
-        <p className="text-[11px] text-mist leading-relaxed">
+      {/* Footer */}
+      <footer className="text-center py-6 px-4 border-t border-card-border">
+        <p className="text-[11px] text-mist leading-relaxed mb-3">
           &#x2727; Each name is generated from classical Chinese texts and
           verified against historical sources &#x2727;
         </p>
+        <nav className="flex justify-center gap-4 flex-wrap">
+          <a
+            href="/how-it-works"
+            className="text-[11px] text-mist hover:text-text-secondary transition-colors"
+          >
+            How It Works
+          </a>
+          <a
+            href="/about"
+            className="text-[11px] text-mist hover:text-text-secondary transition-colors"
+          >
+            About
+          </a>
+          <a
+            href="/privacy"
+            className="text-[11px] text-mist hover:text-text-secondary transition-colors"
+          >
+            Privacy
+          </a>
+          <a
+            href="/terms"
+            className="text-[11px] text-mist hover:text-text-secondary transition-colors"
+          >
+            Terms
+          </a>
+        </nav>
       </footer>
 
       {/* Share modal */}
