@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useRef, useEffect, useCallback } from "react";
 import { SourceCategory, NameEntry } from "@/lib/types";
 import SourceSelector from "@/components/SourceSelector";
 import UserInfo from "@/components/UserInfo";
@@ -12,6 +12,21 @@ import StepIndicator from "@/components/StepIndicator";
 
 type Step = "category" | "userinfo" | "surname" | "loading" | "result";
 
+// Steps that map to history entries (loading is skipped)
+const STEP_TO_HASH: Record<Step, number> = {
+  category: 0,
+  userinfo: 1,
+  surname: 2,
+  loading: -1,
+  result: 3,
+};
+const HASH_TO_STEP: Record<number, Step> = {
+  0: "category",
+  1: "userinfo",
+  2: "surname",
+  3: "result",
+};
+
 export default function Home() {
   const [step, setStep] = useState<Step>("category");
   const [category, setCategory] = useState<SourceCategory | null>(null);
@@ -22,21 +37,82 @@ export default function Home() {
   const [showShare, setShowShare] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  // Prevent pushing history during popstate handling
+  const skipHistory = useRef(false);
+
+  // Navigate to a step AND push browser history
+  const goToStep = useCallback(
+    (newStep: Step) => {
+      setStep(newStep);
+      if (!skipHistory.current) {
+        const idx = STEP_TO_HASH[newStep];
+        if (idx >= 0) {
+          // Use replaceState if going backward, pushState if going forward
+          // Simple heuristic: category=0 always replaces, others push
+          if (idx === 0) {
+            history.replaceState({ step: idx }, "", "#");
+          } else {
+            history.pushState({ step: idx }, "", `#step=${idx}`);
+          }
+        }
+      }
+      skipHistory.current = false;
+    },
+    []
+  );
+
+  // Listen for browser back/forward buttons
+  useEffect(() => {
+    const handlePopState = (e: PopStateEvent) => {
+      skipHistory.current = true;
+      if (e.state && typeof e.state.step === "number") {
+        const restored = HASH_TO_STEP[e.state.step];
+        if (restored) {
+          // If going back to a step before result, clear the result
+          if (restored !== "result") setResult(null);
+          setStep(restored);
+        }
+      } else {
+        // No state = back to initial page = category
+        setResult(null);
+        setError(null);
+        setStep("category");
+      }
+    };
+
+    // On initial load, check if there's a hash (for refresh support)
+    if (typeof window !== "undefined") {
+      const hash = window.location.hash;
+      const match = hash.match(/step=(\d)/);
+      if (match && history.state?.step === undefined) {
+        const idx = parseInt(match[1]);
+        const restored = HASH_TO_STEP[idx];
+        if (restored) {
+          skipHistory.current = true;
+          setStep(restored);
+        }
+      }
+    }
+
+    window.addEventListener("popstate", handlePopState);
+    return () => window.removeEventListener("popstate", handlePopState);
+  }, []);
+
   const handleCategorySelect = (cat: SourceCategory) => {
     setCategory(cat);
-    setStep("userinfo");
+    goToStep("userinfo");
   };
 
   const handleUserInfoSubmit = (name: string, word: string) => {
     setEnglishName(name);
     setSelfWord(word);
-    setStep("surname");
+    goToStep("surname");
   };
 
   const handleUserInfoSkip = () => {
     setEnglishName("");
     setSelfWord("");
-    setStep("surname");
+    goToStep("surname");
   };
 
   const handleSurnameSelect = (s: string) => {
@@ -53,6 +129,7 @@ export default function Home() {
 
   const fetchName = async (name: string, word: string, s: string) => {
     setStep("loading");
+    skipHistory.current = false; // loading step doesn't push history
     try {
       const res = await fetch("/api/generate-name", {
         method: "POST",
@@ -71,7 +148,7 @@ export default function Home() {
 
       const data = await res.json();
       setResult(data);
-      setStep("result");
+      goToStep("result");
     } catch (err) {
       console.error("Failed to fetch name:", err);
       setError("Something went wrong. Please try again.");
@@ -85,13 +162,13 @@ export default function Home() {
   };
 
   const handleReset = () => {
-    setStep("category");
     setCategory(null);
     setEnglishName("");
     setSelfWord("");
     setSurname("");
     setResult(null);
     setError(null);
+    goToStep("category");
   };
 
   const handleShare = () => {
@@ -123,8 +200,8 @@ export default function Home() {
             current={stepNumber}
             onStepClick={(i) => {
               if (i === 0) handleReset();
-              if (i === 1 && category) setStep("userinfo");
-              if (i === 2 && category) setStep("surname");
+              if (i === 1 && category) goToStep("userinfo");
+              if (i === 2 && category) goToStep("surname");
             }}
           />
         </div>
@@ -142,13 +219,13 @@ export default function Home() {
       {/* Main content */}
       <div className="flex-1 px-4 pb-8">
 
-        {/* Back button — visible on steps that have a previous step */}
+        {/* Back button */}
         {(step === "userinfo" || step === "surname") && (
           <div className="max-w-sm mx-auto mb-3">
             <button
               onClick={() => {
-                if (step === "userinfo") setStep("category");
-                if (step === "surname") setStep("userinfo");
+                skipHistory.current = false; // let popstate handle it naturally
+                history.back();
               }}
               className="flex items-center gap-1 text-xs text-text-secondary hover:text-text-primary transition-colors py-2"
               aria-label="Go back to previous step"
