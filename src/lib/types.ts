@@ -9,7 +9,14 @@ export interface GenerateNameRequest {
   sourceCategory: SourceCategory;
   englishName?: string;
   selfWord?: string;
-  surname?: string; // user-selected surname or empty for auto-recommend
+  surname?: string;
+  // Birth data for Bazi (Five Elements) calculation
+  birthYear?: number;
+  birthMonth?: number;
+  birthDay?: number;
+  birthHour?: number;
+  birthMinute?: number;
+  birthLocation?: string;
 }
 
 export interface SurnameOption {

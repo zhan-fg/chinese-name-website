@@ -4,7 +4,8 @@ import { validateName } from "./validate";
 import { getFallbackName } from "@/data/names";
 
 export async function generateName(
-  req: GenerateNameRequest
+  req: GenerateNameRequest,
+  baziPrompt?: string
 ): Promise<NameEntry> {
   const apiKey = process.env.DEEPSEEK_API_KEY;
   const baseUrl =
@@ -18,7 +19,7 @@ export async function generateName(
     } as NameEntry;
   }
 
-  const prompt = buildPrompt(req);
+  const prompt = buildPrompt(req, baziPrompt);
 
   try {
     const controller = new AbortController();

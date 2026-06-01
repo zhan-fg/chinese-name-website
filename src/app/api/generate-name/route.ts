@@ -1,10 +1,22 @@
 import { NextRequest, NextResponse } from "next/server";
 import { generateName } from "@/lib/deepseek";
+import { calculateBazi, formatBaziForPrompt } from "@/lib/bazi";
 
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { sourceCategory, englishName, selfWord, surname } = body;
+    const {
+      sourceCategory,
+      englishName,
+      selfWord,
+      surname,
+      birthYear,
+      birthMonth,
+      birthDay,
+      birthHour,
+      birthMinute,
+      birthLocation,
+    } = body;
 
     if (!sourceCategory) {
       return NextResponse.json(
@@ -23,12 +35,43 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // Calculate Bazi if birth data is provided (for elements category)
+    let baziPrompt: string | undefined;
+    if (
+      sourceCategory === "elements" &&
+      birthYear &&
+      birthMonth &&
+      birthDay &&
+      birthHour !== undefined
+    ) {
+      try {
+        const bazi = calculateBazi({
+          year: birthYear,
+          month: birthMonth,
+          day: birthDay,
+          hour: birthHour,
+          minute: birthMinute || 0,
+          location: birthLocation || undefined,
+        });
+        baziPrompt = formatBaziForPrompt(bazi);
+      } catch (err) {
+        console.error("Bazi calculation failed:", err);
+        // Continue without Bazi if calculation fails
+      }
+    }
+
     const result = await generateName({
       sourceCategory,
       englishName: englishName?.trim() || undefined,
       selfWord: selfWord?.trim() || undefined,
       surname: surname?.trim() || undefined,
-    });
+      birthYear: birthYear || undefined,
+      birthMonth: birthMonth || undefined,
+      birthDay: birthDay || undefined,
+      birthHour: birthHour ?? undefined,
+      birthMinute: birthMinute || undefined,
+      birthLocation: birthLocation?.trim() || undefined,
+    }, baziPrompt);
 
     return NextResponse.json(result);
   } catch (error) {

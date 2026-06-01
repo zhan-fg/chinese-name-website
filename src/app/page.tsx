@@ -33,6 +33,9 @@ export default function Home() {
   const [englishName, setEnglishName] = useState("");
   const [selfWord, setSelfWord] = useState("");
   const [surname, setSurname] = useState("");
+  const [birthData, setBirthData] = useState<{
+    year: number; month: number; day: number; hour: number; minute: number; location: string;
+  } | null>(null);
   const [result, setResult] = useState<NameEntry | null>(null);
   const [showShare, setShowShare] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -103,15 +106,21 @@ export default function Home() {
     goToStep("userinfo");
   };
 
-  const handleUserInfoSubmit = (name: string, word: string) => {
+  const handleUserInfoSubmit = (
+    name: string,
+    word: string,
+    birth?: { year: number; month: number; day: number; hour: number; minute: number; location: string }
+  ) => {
     setEnglishName(name);
     setSelfWord(word);
+    if (birth) setBirthData(birth);
     goToStep("surname");
   };
 
   const handleUserInfoSkip = () => {
     setEnglishName("");
     setSelfWord("");
+    setBirthData(null);
     goToStep("surname");
   };
 
@@ -139,6 +148,12 @@ export default function Home() {
           englishName: name || undefined,
           selfWord: word || undefined,
           surname: s || undefined,
+          birthYear: birthData?.year,
+          birthMonth: birthData?.month,
+          birthDay: birthData?.day,
+          birthHour: birthData?.hour,
+          birthMinute: birthData?.minute,
+          birthLocation: birthData?.location || undefined,
         }),
       });
 
@@ -166,6 +181,7 @@ export default function Home() {
     setEnglishName("");
     setSelfWord("");
     setSurname("");
+    setBirthData(null);
     setResult(null);
     setError(null);
     goToStep("category");
@@ -251,6 +267,7 @@ export default function Home() {
         {/* Step 2: User info */}
         <UserInfo
           visible={step === "userinfo"}
+          category={category}
           onSkip={handleUserInfoSkip}
           onSubmit={handleUserInfoSubmit}
         />

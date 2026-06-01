@@ -56,7 +56,7 @@ const surnameGuide = `COMMON CHINESE SURNAMES (choose the best match or use the 
 林 (Lín/Leen) — forest. Nature-connected.
 马 (Mǎ/Mah) — horse. Energetic, free-spirited.`;
 
-export function buildPrompt(req: GenerateNameRequest): string {
+export function buildPrompt(req: GenerateNameRequest, baziAnalysis?: string): string {
   const { sourceCategory, englishName, selfWord, surname } = req;
 
   const personalization = [
@@ -77,8 +77,8 @@ SOURCE CATEGORY: ${categoryGuides[sourceCategory]}
 
 ${surnameGuide}
 
-${personalization ? `PERSONALIZATION:\n${personalization}\n` : ""}
-
+${personalization ? "PERSONALIZATION:\n" + personalization + "\n" : ""}
+${baziAnalysis ? "BAZI ANALYSIS (八字命理):\n" + baziAnalysis + "\n\nBased on this Bazi chart, the name MUST supplement the weak elements and balance the chart. Choose characters whose Five Element properties (according to the element-character mapping above) fill the gaps identified in the analysis.\n" : ""}
 Generate a COMPLETE Chinese name with SURNAME + 2-character GIVEN NAME. You MUST:
 1. Use ONLY real characters from classical Chinese texts or verified historical sources — NO invented names
 2. Choose characters whose pronunciation is reasonably easy for English speakers (avoid ü, avoid zh/ch/sh/r if a simpler alternative exists with same meaning)
@@ -86,6 +86,7 @@ Generate a COMPLETE Chinese name with SURNAME + 2-character GIVEN NAME. You MUST
 4. The name must sound beautiful and carry positive, aspirational meaning
 5. The story must be vivid and emotional — make the reader feel something
 6. The surname should be chosen from the common surnames list above UNLESS the user already provided one
+${baziAnalysis ? "7. CRITICAL FOR BAZI: Both given-name characters MUST supplement the WEAK elements identified above. The first character should target the most deficient element; the second should target the next weakest. Explain in the explanation field WHY these characters balance this specific person's chart." : ""}
 
 CRITICAL — Return ONLY this EXACT JSON (no markdown, no explanation outside the JSON):
 
