@@ -48,20 +48,19 @@ export default function ShareCard({ name, onClose }: Props) {
     ctx.lineTo(0, size);
     ctx.fill();
 
-    // Characters (large, centered)
+    // Characters (large, centered) — show full name
     ctx.fillStyle = "#1A2B34";
-    ctx.font = "light 180px 'Georgia', 'Noto Serif SC', serif";
+    ctx.font = "light 160px 'Georgia', 'Noto Serif SC', serif";
     ctx.textAlign = "center";
-    const chars = name.chars.replace(" ", "\u2009\u2009");
-    ctx.fillText(chars, size / 2, size * 0.42);
+    ctx.fillText(name.fullChars, size / 2, size * 0.40);
 
     // Pinyin + phonetic
-    ctx.font = "32px 'Inter', system-ui, sans-serif";
+    ctx.font = "30px 'Inter', system-ui, sans-serif";
     ctx.fillStyle = "#5E6F78";
     ctx.fillText(
       `${name.pinyin} \u00B7 ${name.phonetic}`,
       size / 2,
-      size * 0.52
+      size * 0.50
     );
 
     // Divider

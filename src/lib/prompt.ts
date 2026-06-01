@@ -2,12 +2,12 @@ import { GenerateNameRequest } from "./types";
 
 const categoryGuides: Record<string, string> = {
   poetry: `Classical Chinese poetry (Tang/Song dynasty). Find a real poem, 
-extract 2 characters that form a beautiful name. Prioritize poems by Li Bai, 
+extract 2 characters that form a beautiful given name. Prioritize poems by Li Bai, 
 Du Fu, Wang Wei, Su Shi, Li Qingzhao. The name must come from an actual poem —
 cite the exact line.`,
 
   elements: `Five Elements philosophy (Wu Xing: Metal, Wood, Water, Fire, Earth). 
-Create a 2-character name where each character embodies an element. Explain the 
+Create a 2-character given name where each character embodies an element. Explain the 
 personality archetype — treat it like a Myers-Briggs or Enneagram, but ancient 
 Chinese. Each element has personality traits: Wood=growing creative, Fire=passionate 
 radiant, Earth=grounded nurturing, Metal=disciplined refined, Water=deep adaptable.`,
@@ -28,14 +28,31 @@ story like a biopic trailer — when did they live, what did they overcome,
 why do we still remember them?`,
 };
 
+const surnameGuide = `COMMON CHINESE SURNAMES (choose the best match or use the one provided):
+李 (Lǐ/Lee) — plum tree. Most common surname globally.
+王 (Wáng/Wahng) — king. Royal, authoritative.
+张 (Zhāng/Jahng) — to draw a bow. Archer's lineage.
+刘 (Liú/Lyoh) — battle-axe. Warrior ancestors.
+陈 (Chén/Chun) — to exhibit. Old southern clan.
+杨 (Yáng/Yahng) — poplar tree. Resilient.
+赵 (Zhào/Jow) — to summon. Imperial lineage.
+黄 (Huáng/Hwahng) — yellow/golden. Earth element.
+周 (Zhōu/Joe) — complete, thorough. Ancient dynasty name.
+吴 (Wú/Woo) — the Wu kingdom. Southern heritage.
+林 (Lín/Leen) — forest. Nature-connected.
+马 (Mǎ/Mah) — horse. Energetic, free-spirited.`;
+
 export function buildPrompt(req: GenerateNameRequest): string {
-  const { sourceCategory, englishName, selfWord } = req;
+  const { sourceCategory, englishName, selfWord, surname } = req;
 
   const personalization = [
     englishName &&
-      `User's English name: "${englishName}". If possible, choose characters whose sounds echo their English name (e.g. "Emma" → sounds like "Yì Mǎ" or similar).`,
+      `User's English name: "${englishName}". If possible, choose characters whose sounds echo their English name.`,
     selfWord &&
       `User describes themselves as: "${selfWord}". Choose a name that reflects this quality and weave it into the explanation naturally.`,
+    surname
+      ? `User chose the surname: ${surname}. Use this surname.`
+      : `Recommend a surname from the list below that best matches the name's meaning and the user's vibe.`,
   ]
     .filter(Boolean)
     .join("\n");
@@ -44,27 +61,36 @@ export function buildPrompt(req: GenerateNameRequest): string {
 
 SOURCE CATEGORY: ${categoryGuides[sourceCategory]}
 
+${surnameGuide}
+
 ${personalization ? `PERSONALIZATION:\n${personalization}\n` : ""}
 
-Generate a 2-character Chinese name. You MUST:
+Generate a COMPLETE Chinese name with SURNAME + 2-character GIVEN NAME. You MUST:
 1. Use ONLY real characters from classical Chinese texts or verified historical sources — NO invented names
 2. Choose characters whose pronunciation is reasonably easy for English speakers (avoid ü, avoid zh/ch/sh/r if a simpler alternative exists with same meaning)
 3. Explain every concept using Western analogies
 4. The name must sound beautiful and carry positive, aspirational meaning
 5. The story must be vivid and emotional — make the reader feel something
+6. The surname should be chosen from the common surnames list above UNLESS the user already provided one
 
 CRITICAL — Return ONLY this EXACT JSON (no markdown, no explanation outside the JSON):
 
 {
-  "chars": "two characters with space between them",
-  "pinyin": "Pinyin with tone marks",
-  "phonetic": "English-friendly pronunciation hint (e.g. 'Yoon Fahn')",
-  "meaning": "Name meaning in 2-4 English words",
+  "surname": "single character surname (e.g. '李')",
+  "surnamePinyin": "Pinyin with tone (e.g. 'Lǐ')",
+  "surnamePhonetic": "English-friendly (e.g. 'Lee')",
+  "surnameMeaning": "meaning in English (e.g. 'plum tree')",
+  "givenChars": "two characters with space between them (e.g. '云 帆')",
+  "fullChars": "surname + given without spaces (e.g. '李云帆')",
+  "chars": "surname + given with spaces (e.g. '李 云 帆')",
+  "pinyin": "Full pinyin with tone marks (e.g. 'Lǐ Yún Fān')",
+  "phonetic": "English-friendly pronunciation (e.g. 'Lee Yoon Fahn')",
+  "meaning": "Full name meaning in 3-5 English words",
   
-  "char1": "first character",
+  "char1": "first given-name character",
   "char1Pinyin": "pinyin of first character",
   "char1Meaning": "meaning of first character in English",
-  "char2": "second character",
+  "char2": "second given-name character",
   "char2Pinyin": "pinyin of second character",
   "char2Meaning": "meaning of second character in English",
   

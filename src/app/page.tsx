@@ -4,18 +4,20 @@ import { useState } from "react";
 import { SourceCategory, NameEntry } from "@/lib/types";
 import SourceSelector from "@/components/SourceSelector";
 import UserInfo from "@/components/UserInfo";
+import SurnameSelector from "@/components/SurnameSelector";
 import GeneratingLoader from "@/components/GeneratingLoader";
 import NameResult from "@/components/NameResult";
 import ShareCard from "@/components/ShareCard";
 import StepIndicator from "@/components/StepIndicator";
 
-type Step = "category" | "userinfo" | "loading" | "result";
+type Step = "category" | "userinfo" | "surname" | "loading" | "result";
 
 export default function Home() {
   const [step, setStep] = useState<Step>("category");
   const [category, setCategory] = useState<SourceCategory | null>(null);
   const [englishName, setEnglishName] = useState("");
   const [selfWord, setSelfWord] = useState("");
+  const [surname, setSurname] = useState("");
   const [result, setResult] = useState<NameEntry | null>(null);
   const [showShare, setShowShare] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -30,24 +32,31 @@ export default function Home() {
     }
   };
 
-  const handleUserInfoSubmit = async (
-    name: string,
-    word: string
-  ) => {
+  const handleUserInfoSubmit = (name: string, word: string) => {
     setEnglishName(name);
     setSelfWord(word);
-    setError(null);
-    await fetchName(name, word);
+    setStep("surname");
   };
 
-  const handleSkip = async () => {
+  const handleUserInfoSkip = () => {
     setEnglishName("");
     setSelfWord("");
-    setError(null);
-    await fetchName("", "");
+    setStep("surname");
   };
 
-  const fetchName = async (name: string, word: string) => {
+  const handleSurnameSelect = (s: string) => {
+    setSurname(s);
+    setError(null);
+    fetchName(englishName, selfWord, s);
+  };
+
+  const handleSurnameSkip = () => {
+    setSurname("");
+    setError(null);
+    fetchName(englishName, selfWord, "");
+  };
+
+  const fetchName = async (name: string, word: string, s: string) => {
     setStep("loading");
     try {
       const res = await fetch("/api/generate-name", {
@@ -57,6 +66,7 @@ export default function Home() {
           sourceCategory: category,
           englishName: name || undefined,
           selfWord: word || undefined,
+          surname: s || undefined,
         }),
       });
 
@@ -70,13 +80,13 @@ export default function Home() {
     } catch (err) {
       console.error("Failed to fetch name:", err);
       setError("Something went wrong. Please try again.");
-      setStep("category");
+      setStep("surname");
     }
   };
 
   const handleRetry = async () => {
     setError(null);
-    await fetchName(englishName, selfWord);
+    await fetchName(englishName, selfWord, surname);
   };
 
   const handleReset = () => {
@@ -84,6 +94,7 @@ export default function Home() {
     setCategory(null);
     setEnglishName("");
     setSelfWord("");
+    setSurname("");
     setResult(null);
     setError(null);
   };
@@ -92,9 +103,10 @@ export default function Home() {
     setShowShare(true);
   };
 
-  // Determine step number for indicator
-  const stepNumber = step === "category" ? 1 : step === "userinfo" ? 2 : 3;
-  const stepLabels = ["Source", "About You", "Your Name"];
+  // Step indicator
+  const stepNumber =
+    step === "category" ? 0 : step === "userinfo" ? 1 : step === "surname" ? 2 : 3;
+  const stepLabels = ["Source", "About You", "Surname", "Your Name"];
 
   return (
     <main className="min-h-screen bg-[#F8FAFB] flex flex-col">
@@ -113,10 +125,11 @@ export default function Home() {
         <div className="px-4 mb-6">
           <StepIndicator
             steps={stepLabels}
-            current={stepNumber - 1}
+            current={stepNumber}
             onStepClick={(i) => {
               if (i === 0) handleReset();
               if (i === 1 && category) setStep("userinfo");
+              if (i === 2 && category) setStep("surname");
             }}
           />
         </div>
@@ -156,14 +169,21 @@ export default function Home() {
         {/* Step 2: User info */}
         <UserInfo
           visible={step === "userinfo"}
-          onSkip={handleSkip}
+          onSkip={handleUserInfoSkip}
           onSubmit={handleUserInfoSubmit}
+        />
+
+        {/* Step 3: Surname selection */}
+        <SurnameSelector
+          visible={step === "surname"}
+          onSelect={handleSurnameSelect}
+          onSkip={handleSurnameSkip}
         />
 
         {/* Loading */}
         {step === "loading" && <GeneratingLoader />}
 
-        {/* Step 3: Result */}
+        {/* Step 4: Result */}
         {step === "result" && result && (
           <NameResult
             name={result}

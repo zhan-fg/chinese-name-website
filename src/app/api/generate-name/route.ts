@@ -4,7 +4,7 @@ import { generateName } from "@/lib/deepseek";
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { sourceCategory, englishName, selfWord } = body;
+    const { sourceCategory, englishName, selfWord, surname } = body;
 
     if (!sourceCategory) {
       return NextResponse.json(
@@ -27,6 +27,7 @@ export async function POST(request: NextRequest) {
       sourceCategory,
       englishName: englishName?.trim() || undefined,
       selfWord: selfWord?.trim() || undefined,
+      surname: surname?.trim() || undefined,
     });
 
     return NextResponse.json(result);

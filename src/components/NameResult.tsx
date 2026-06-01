@@ -2,7 +2,7 @@
 
 import { NameEntry } from "@/lib/types";
 import { motion, AnimatePresence } from "framer-motion";
-import { useState } from "react";
+import { useState, useCallback } from "react";
 
 interface Props {
   name: NameEntry;
@@ -21,22 +21,78 @@ export default function NameResult({
 }: Props) {
   const [storyOpen, setStoryOpen] = useState(false);
   const [copied, setCopied] = useState(false);
+  const [speaking, setSpeaking] = useState(false);
+  const [noVoice, setNoVoice] = useState(false);
 
   const handleCopy = async () => {
-    const text = `${name.chars} · ${name.pinyin} — ${name.meaning}\n\n"${name.sourceTranslation}"\n— ${name.sourceAttribution}`;
-    await navigator.clipboard.writeText(text);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 2000);
-  };
-
-  const handleSpeak = () => {
-    if ("speechSynthesis" in window) {
-      const utterance = new SpeechSynthesisUtterance(name.chars);
-      utterance.lang = "zh-CN";
-      utterance.rate = 0.75;
-      speechSynthesis.speak(utterance);
+    const text = `${name.fullChars} · ${name.pinyin} — ${name.meaning}\n\n"${name.sourceTranslation}"\n— ${name.sourceAttribution}`;
+    try {
+      await navigator.clipboard.writeText(text);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    } catch {
+      // Fallback for older browsers
+      const ta = document.createElement("textarea");
+      ta.value = text;
+      document.body.appendChild(ta);
+      ta.select();
+      document.execCommand("copy");
+      document.body.removeChild(ta);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
     }
   };
+
+  const handleSpeak = useCallback(() => {
+    if (!("speechSynthesis" in window)) {
+      setNoVoice(true);
+      return;
+    }
+
+    // Cancel any ongoing speech
+    speechSynthesis.cancel();
+
+    // The full name text to speak
+    const fullName = name.fullChars;
+
+    const trySpeak = () => {
+      const voices = speechSynthesis.getVoices();
+      // Try to find a Chinese voice
+      const zhVoice = voices.find(
+        (v) => v.lang.startsWith("zh") || v.lang === "cmn"
+      );
+
+      const utterance = new SpeechSynthesisUtterance(fullName);
+      utterance.lang = "zh-CN";
+      utterance.rate = 0.75;
+      utterance.pitch = 1;
+
+      if (zhVoice) {
+        utterance.voice = zhVoice;
+      }
+
+      utterance.onstart = () => setSpeaking(true);
+      utterance.onend = () => setSpeaking(false);
+      utterance.onerror = () => {
+        setSpeaking(false);
+        setNoVoice(true);
+      };
+
+      speechSynthesis.speak(utterance);
+    };
+
+    // Voices load asynchronously — if empty, wait for them
+    const voices = speechSynthesis.getVoices();
+    if (voices.length === 0) {
+      const onVoicesChanged = () => {
+        speechSynthesis.removeEventListener("voiceschanged", onVoicesChanged);
+        trySpeak();
+      };
+      speechSynthesis.addEventListener("voiceschanged", onVoicesChanged);
+    } else {
+      trySpeak();
+    }
+  }, [name.fullChars]);
 
   const sourceIcons: Record<string, string> = {
     poetry: "\uD83D\uDCDC",
@@ -53,24 +109,39 @@ export default function NameResult({
       transition={{ duration: 0.5 }}
       className="card overflow-hidden max-w-sm mx-auto"
     >
-      {/* Hero: Name display */}
+      {/* Hero: Full name with surname */}
       <div className="text-center py-10 px-6 bg-mountain-gradient">
         <motion.div
           initial={{ scale: 0.8, opacity: 0 }}
           animate={{ scale: 1, opacity: 1 }}
           transition={{ delay: 0.15, duration: 0.6, ease: "easeOut" }}
         >
-          <h2 className="text-[68px] font-light leading-none tracking-wider text-text-primary mb-3">
-            {name.chars}
+          {/* Surname badge */}
+          <div className="inline-flex items-center gap-1.5 mb-3 px-3 py-1 rounded-full bg-white/60 border border-mist/30">
+            <span className="text-xs text-text-secondary font-light">姓 · Surname</span>
+            <span className="text-lg font-light text-text-primary">{name.surname}</span>
+            <span className="text-[11px] text-text-secondary font-light">
+              {name.surnamePinyin}
+            </span>
+          </div>
+
+          {/* Given name - large display */}
+          <h2 className="text-[68px] font-light leading-none tracking-wider text-text-primary mb-1">
+            {name.givenChars}
           </h2>
+
+          {/* Full name subtitle */}
+          <p className="text-sm text-text-secondary font-light mb-1">
+            <span className="font-medium text-text-primary">{name.fullChars}</span>
+          </p>
+          <p className="text-sm text-text-secondary font-light mb-1">
+            {name.pinyin} /{" "}
+            <span className="font-medium text-text-primary">{name.phonetic}</span>
+          </p>
+          <p className="text-sm italic text-text-secondary">
+            &ldquo;{name.meaning}&rdquo;
+          </p>
         </motion.div>
-        <p className="text-sm text-text-secondary font-light mb-1">
-          {name.pinyin} /{" "}
-          <span className="font-medium text-text-primary">{name.phonetic}</span>
-        </p>
-        <p className="text-sm italic text-text-secondary">
-          &ldquo;{name.meaning}&rdquo;
-        </p>
 
         {isFallback && (
           <p className="text-xs text-accent/70 mt-3 italic">
@@ -158,13 +229,26 @@ export default function NameResult({
         </AnimatePresence>
       </div>
 
-      {/* Character breakdown */}
+      {/* Character breakdown: surname + both characters */}
       <div className="px-6 py-5 border-t border-card-border bg-[#F8FAFB]">
         <h3 className="text-xs font-medium text-deep-blue uppercase tracking-wider mb-3">
           Character Breakdown
         </h3>
         <div className="flex gap-3">
+          {/* Surname */}
           <div className="flex-1 text-center p-3 rounded-lg bg-surface border border-card-border">
+            <p className="text-[11px] text-text-secondary mb-1">姓</p>
+            <p className="text-2xl font-light text-text-primary mb-1">
+              {name.surname}
+            </p>
+            <p className="text-xs text-text-secondary">{name.surnamePinyin}</p>
+            <p className="text-xs text-text-secondary mt-0.5">
+              {name.surnameMeaning}
+            </p>
+          </div>
+          {/* Given name char 1 */}
+          <div className="flex-1 text-center p-3 rounded-lg bg-surface border border-card-border">
+            <p className="text-[11px] text-text-secondary mb-1">名</p>
             <p className="text-2xl font-light text-text-primary mb-1">
               {name.char1}
             </p>
@@ -173,7 +257,9 @@ export default function NameResult({
               {name.char1Meaning}
             </p>
           </div>
+          {/* Given name char 2 */}
           <div className="flex-1 text-center p-3 rounded-lg bg-surface border border-card-border">
+            <p className="text-[11px] text-text-secondary mb-1">名</p>
             <p className="text-2xl font-light text-text-primary mb-1">
               {name.char2}
             </p>
@@ -208,9 +294,18 @@ export default function NameResult({
           className="flex items-center gap-1.5 text-xs text-text-secondary hover:text-text-primary transition-colors py-1.5 px-2 rounded-lg hover:bg-[#EEF4F8]"
           aria-label="Hear pronunciation"
         >
-          \uD83D\uDD0A Hear
+          {speaking ? "\uD83D\uDD0A Speaking..." : noVoice ? "\u26A0\uFE0F No voice" : "\uD83D\uDD0A Hear"}
         </button>
       </div>
+
+      {noVoice && (
+        <div className="px-6 pb-2">
+          <p className="text-[11px] text-accent/70 text-center">
+            Your browser doesn&apos;t have a Chinese voice. Try opening in Chrome
+            or Safari.
+          </p>
+        </div>
+      )}
 
       {/* Bottom actions */}
       <div className="px-6 py-4 border-t border-card-border bg-[#F8FAFB] space-y-2">
