@@ -1,0 +1,46 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --color-bg: #f8fafb;
+  --color-surface: #ffffff;
+  --color-text: #1a2b34;
+  --color-text-secondary: #5e6f78;
+  --color-border: #e2e8ed;
+  --color-accent: #c1773a;
+  --color-deep: #1b4965;
+  --color-mid: #2b5b84;
+}
+
+body {
+  color: var(--color-text);
+  background: var(--color-bg);
+  font-family: "Inter", system-ui, -apple-system, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* Mountain-water gradient utility */
+.bg-mountain-gradient {
+  background: linear-gradient(
+    135deg,
+    var(--color-bg) 0%,
+    #eaf1f5 50%,
+    #dce8ef 100%
+  );
+}
+
+/* Card default */
+.card {
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: 14px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
+}
+
+@layer utilities {
+  .text-balance {
+    text-wrap: balance;
+  }
+}
