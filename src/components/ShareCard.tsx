@@ -106,7 +106,8 @@ export default function ShareCard({ name, onClose }: Props) {
     // Bottom branding
     ctx.fillStyle = "#1B4965";
     ctx.font = "24px 'Inter', system-ui, sans-serif";
-    ctx.fillText("shanshui.name", size / 2, size * 0.93);
+    const hostname = typeof window !== "undefined" ? window.location.hostname : "shanshui.name";
+    ctx.fillText(hostname, size / 2, size * 0.93);
 
     ctx.fillStyle = "#8BAFBF";
     ctx.font = "16px 'Inter', system-ui, sans-serif";
@@ -128,7 +129,7 @@ export default function ShareCard({ name, onClose }: Props) {
       try {
         await navigator.share({
           title: `My Chinese name: ${name.chars} \u2014 ${name.meaning}`,
-          text: `I discovered my Chinese name on shanshui.name \u2014 "${name.chars}" means "${name.meaning}." Find yours!`,
+          text: `I discovered my Chinese name on ${window.location.hostname} \u2014 "${name.chars}" means "${name.meaning}." Find yours!`,
           files: [file],
         });
       } catch {
