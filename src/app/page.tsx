@@ -24,12 +24,7 @@ export default function Home() {
 
   const handleCategorySelect = (cat: SourceCategory) => {
     setCategory(cat);
-  };
-
-  const handleContinueFromCategory = () => {
-    if (category) {
-      setStep("userinfo");
-    }
+    setStep("userinfo");
   };
 
   const handleUserInfoSubmit = (name: string, word: string) => {
@@ -146,6 +141,26 @@ export default function Home() {
 
       {/* Main content */}
       <div className="flex-1 px-4 pb-8">
+
+        {/* Back button — visible on steps that have a previous step */}
+        {(step === "userinfo" || step === "surname") && (
+          <div className="max-w-sm mx-auto mb-3">
+            <button
+              onClick={() => {
+                if (step === "userinfo") setStep("category");
+                if (step === "surname") setStep("userinfo");
+              }}
+              className="flex items-center gap-1 text-xs text-text-secondary hover:text-text-primary transition-colors py-2"
+              aria-label="Go back to previous step"
+            >
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <polyline points="15 18 9 12 15 6" />
+              </svg>
+              {step === "userinfo" ? "Sources" : "About You"}
+            </button>
+          </div>
+        )}
+
         {/* Step 1: Category selection */}
         {step === "category" && (
           <div>
@@ -153,16 +168,6 @@ export default function Home() {
               selected={category}
               onSelect={handleCategorySelect}
             />
-            {category && (
-              <div className="mt-6 max-w-sm mx-auto">
-                <button
-                  onClick={handleContinueFromCategory}
-                  className="w-full py-3 rounded-card bg-deep-blue text-white text-sm font-medium hover:bg-mid-blue transition-colors"
-                >
-                  Continue &rarr;
-                </button>
-              </div>
-            )}
           </div>
         )}
 

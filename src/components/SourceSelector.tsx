@@ -110,18 +110,6 @@ export default function SourceSelector({ selected, onSelect }: Props) {
           );
         })}
       </div>
-
-      {selected && (
-        <motion.div
-          initial={{ opacity: 0, y: 8 }}
-          animate={{ opacity: 1, y: 0 }}
-          className="pt-2"
-        >
-          <p className="text-xs text-center text-text-secondary">
-            Great choice. Tap &quot;Continue&quot; to personalize or skip ahead.
-          </p>
-        </motion.div>
-      )}
     </div>
   );
 }
