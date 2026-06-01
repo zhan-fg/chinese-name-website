@@ -6,11 +6,25 @@ extract 2 characters that form a beautiful given name. Prioritize poems by Li Ba
 Du Fu, Wang Wei, Su Shi, Li Qingzhao. The name must come from an actual poem —
 cite the exact line.`,
 
-  elements: `Five Elements philosophy (Wu Xing: Metal, Wood, Water, Fire, Earth). 
-Create a 2-character given name where each character embodies an element. Explain the 
-personality archetype — treat it like a Myers-Briggs or Enneagram, but ancient 
-Chinese. Each element has personality traits: Wood=growing creative, Fire=passionate 
-radiant, Earth=grounded nurturing, Metal=disciplined refined, Water=deep adaptable.`,
+  elements: `Five Elements philosophy (Wu Xing 五行: Metal 金, Wood 木, Water 水, Fire 火, Earth 土).
+This category is FUNDAMENTALLY DIFFERENT from poetry — do NOT use names from poems or literary texts.
+
+Instead, create a given name from characters that DIRECTLY embody the five elements. Draw from the 
+canonical Five Elements source texts: 《尚书·洪范》(Book of Documents, Grand Plan), 
+《黄帝内经》(Yellow Emperor's Inner Canon), 《五行大义》(Great Meaning of Five Elements).
+
+The classic elemental definitions from 尚书·洪范:
+- 水曰润下 (Water moistens and descends) — use chars like 润, 渊, 涵, 源, 清, 泽
+- 火曰炎上 (Fire blazes and rises) — use chars like 炎, 煜, 烨, 焕, 光, 炜
+- 木曰曲直 (Wood bends and straightens) — use chars like 森, 荣, 栋, 楷, 柏, 桐
+- 金曰从革 (Metal follows and transforms) — use chars like 铭, 钧, 锋, 铎, 铮, 锡
+- 土爰稼穑 (Earth sows and reaps) — use chars like 坤, 垚, 坚, 城, 坦, 圣
+
+Create names that show element relationships: generating cycle (相生: Wood→Fire→Earth→Metal→Water) 
+or balancing opposites. Each character MUST clearly correspond to a specific element.
+
+CRITICAL: sourceText MUST come from a Five Elements text (尚书·洪范, 黄帝内经, etc.), 
+NOT from poetry. If you can't find a direct Five Elements source, use 尚书·洪范's elemental definitions.`,
 
   nature: `Natural world: stars, constellations, oceans, mountains, rivers, seasons, 
 weather phenomena. Draw from classical Chinese landscape poetry and real 
