@@ -156,7 +156,7 @@ export default function PaywallModal({
                     <p className="text-sm font-medium text-text-primary">
                       ${(plan.amount / 100).toFixed(2)}
                     </p>
-                    {plan.type === "subscription" && (
+                    {plan.id === "subscription" && (
                       <p className="text-[10px] text-text-secondary">30 days</p>
                     )}
                   </div>
