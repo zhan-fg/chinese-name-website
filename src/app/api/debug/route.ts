@@ -12,7 +12,7 @@ export async function GET() {
   // 1. Supabase
   try {
     const start = Date.now();
-    const { data, error } = await supabaseAdmin
+    const { error } = await supabaseAdmin
       .from("users")
       .select("id")
       .limit(1);

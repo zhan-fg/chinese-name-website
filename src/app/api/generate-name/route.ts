@@ -87,10 +87,6 @@ export async function POST(request: NextRequest) {
 
     // Deduct credit after successful generation
     if (anonymousId) {
-      const ip =
-        request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ||
-        request.headers.get("x-real-ip") ||
-        undefined;
       try {
         await deductUse(anonymousId);
       } catch (err) {
