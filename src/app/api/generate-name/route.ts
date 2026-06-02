@@ -3,7 +3,7 @@ import { generateName } from "@/lib/deepseek";
 import { calculateBazi, formatBaziForPrompt } from "@/lib/bazi";
 import { deductUse } from "@/lib/credits";
 
-export const maxDuration = 30; // Allow up to 30s for AI generation
+export const maxDuration = 30;
 
 export async function POST(request: NextRequest) {
   try {
@@ -29,7 +29,13 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const validCategories = ["poetry", "elements", "nature", "mythology", "history"];
+    const validCategories = [
+      "poetry",
+      "elements",
+      "nature",
+      "mythology",
+      "history",
+    ];
     if (!validCategories.includes(sourceCategory)) {
       return NextResponse.json(
         {
@@ -39,7 +45,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Calculate Bazi if birth data is provided (for elements category)
+    // Calculate Bazi if birth data is provided
     let baziPrompt: string | undefined;
     if (
       sourceCategory === "elements" &&
@@ -79,8 +85,12 @@ export async function POST(request: NextRequest) {
       baziPrompt
     );
 
-    // Deduct credit after successful generation (fail-silent: don't block the result)
+    // Deduct credit after successful generation
     if (anonymousId) {
+      const ip =
+        request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ||
+        request.headers.get("x-real-ip") ||
+        undefined;
       try {
         await deductUse(anonymousId);
       } catch (err) {

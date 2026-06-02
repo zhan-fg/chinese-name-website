@@ -1,12 +1,14 @@
 import { supabaseAdmin } from "./supabase";
 
 const FREE_USES = 3; // Number of free name generations per anonymous user
+const MAX_FREE_ACCOUNTS_PER_IP = 2; // Max distinct users that get free uses from same IP
 
 /**
  * Ensure a user record exists for the given anonymous ID.
  * Creates one with 3 free uses if it doesn't exist.
+ * Limits free accounts per IP to prevent incognito abuse.
  */
-export async function ensureUser(anonymousId: string) {
+export async function ensureUser(anonymousId: string, ip?: string) {
   const { data: existing } = await supabaseAdmin
     .from("users")
     .select("id, free_uses_remaining, credits_remaining, subscription_status")
@@ -17,24 +19,40 @@ export async function ensureUser(anonymousId: string) {
     return existing;
   }
 
-  // Create new user with 3 free uses
+  // Determine free uses for new user
+  let freeUses = FREE_USES;
+
+  if (ip) {
+    // Count how many existing users already got free uses from this IP
+    const { count } = await supabaseAdmin
+      .from("users")
+      .select("id", { count: "exact", head: true })
+      .eq("ip_address", ip)
+      .gt("free_uses_remaining", 0); // only count accounts that actually got free uses
+
+    if (count && count >= MAX_FREE_ACCOUNTS_PER_IP) {
+      freeUses = 0; // No more free lunches from this IP
+    }
+  }
+
+  // Create new user
   const { data: created, error } = await supabaseAdmin
     .from("users")
     .insert({
       anonymous_id: anonymousId,
-      free_uses_remaining: FREE_USES,
+      free_uses_remaining: freeUses,
       credits_remaining: 0,
       subscription_status: "none",
+      ip_address: ip || null,
     })
     .select("id, free_uses_remaining, credits_remaining, subscription_status")
     .single();
 
   if (error) {
     console.error("Failed to create user:", error);
-    // Fallback: treat as unlimited free for now
     return {
       id: "fallback",
-      free_uses_remaining: FREE_USES,
+      free_uses_remaining: freeUses,
       credits_remaining: 0,
       subscription_status: "none",
     };
@@ -46,13 +64,13 @@ export async function ensureUser(anonymousId: string) {
 /**
  * Get available uses (free + paid) for a user.
  */
-export async function getAvailableUses(anonymousId: string): Promise<{
+export async function getAvailableUses(anonymousId: string, ip?: string): Promise<{
   freeRemaining: number;
   creditsRemaining: number;
   totalRemaining: number;
   isSubscriber: boolean;
 }> {
-  const user = await ensureUser(anonymousId);
+  const user = await ensureUser(anonymousId, ip);
 
   const isSubscriber = user.subscription_status === "active";
 

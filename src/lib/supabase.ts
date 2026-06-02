@@ -28,6 +28,7 @@ CREATE TABLE users (
   subscription_status TEXT DEFAULT 'none',  -- 'none' | 'active' | 'cancelled'
   subscription_end TIMESTAMPTZ,
   stripe_customer_id TEXT,
+  ip_address TEXT,
   created_at TIMESTAMPTZ DEFAULT NOW(),
   updated_at TIMESTAMPTZ DEFAULT NOW()
 );
