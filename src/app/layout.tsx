@@ -108,6 +108,8 @@ export default function RootLayout({
       <head>
         <StructuredData />
         <GoogleAnalytics />
+        <link rel="llms" href={`${SITE_URL}/llms.txt`} />
+        <link rel="llms-full" href={`${SITE_URL}/llms-full.txt`} />
       </head>
       <body className={`${inter.variable} font-sans antialiased`}>
         {children}
