@@ -9,6 +9,7 @@ import GeneratingLoader from "@/components/GeneratingLoader";
 import NameResult from "@/components/NameResult";
 import ShareCard from "@/components/ShareCard";
 import StepIndicator from "@/components/StepIndicator";
+import BaziDisclaimer from "@/components/BaziDisclaimer";
 
 type Step = "category" | "userinfo" | "surname" | "loading" | "result";
 
@@ -265,6 +266,7 @@ export default function Home() {
         )}
 
         {/* Step 2: User info */}
+        <BaziDisclaimer visible={step === "userinfo" && category === "elements"} />
         <UserInfo
           visible={step === "userinfo"}
           category={category}
@@ -300,32 +302,23 @@ export default function Home() {
           &#x2727; Each name is generated from classical Chinese texts and
           verified against historical sources &#x2727;
         </p>
-        <nav className="flex justify-center gap-4 flex-wrap">
-          <a
-            href="/how-it-works"
-            className="text-[11px] text-mist hover:text-text-secondary transition-colors"
-          >
-            How It Works
-          </a>
-          <a
-            href="/about"
-            className="text-[11px] text-mist hover:text-text-secondary transition-colors"
-          >
-            About
-          </a>
-          <a
-            href="/privacy"
-            className="text-[11px] text-mist hover:text-text-secondary transition-colors"
-          >
-            Privacy
-          </a>
-          <a
-            href="/terms"
-            className="text-[11px] text-mist hover:text-text-secondary transition-colors"
-          >
-            Terms
-          </a>
+        <nav className="flex justify-center gap-3 flex-wrap mb-3">
+          <a href="/how-it-works" className="text-[11px] text-mist hover:text-text-secondary transition-colors">How It Works</a>
+          <span className="text-mist/40 text-[11px]">&middot;</span>
+          <a href="/about" className="text-[11px] text-mist hover:text-text-secondary transition-colors">About</a>
+          <span className="text-mist/40 text-[11px]">&middot;</span>
+          <a href="/contact" className="text-[11px] text-mist hover:text-text-secondary transition-colors">Contact</a>
         </nav>
+        <nav className="flex justify-center gap-3 flex-wrap">
+          <a href="/privacy" className="text-[11px] text-mist hover:text-text-secondary transition-colors">Privacy</a>
+          <span className="text-mist/40 text-[11px]">&middot;</span>
+          <a href="/terms" className="text-[11px] text-mist hover:text-text-secondary transition-colors">Terms</a>
+          <span className="text-mist/40 text-[11px]">&middot;</span>
+          <a href="/disclaimer" className="text-[11px] text-mist hover:text-text-secondary transition-colors">Disclaimer</a>
+        </nav>
+        <p className="text-[10px] text-mist/60 mt-3">
+          &copy; {new Date().getFullYear()} Shan Shui. All rights reserved.
+        </p>
       </footer>
 
       {/* Share modal */}
