@@ -1,10 +1,5 @@
 "use client";
 
-import type { Metadata } from "next";
-
-const SITE_URL =
-  process.env.NEXT_PUBLIC_SITE_URL || "https://chinese-name-website.vercel.app";
-
 export default function PricingPage() {
   return (
     <main className="min-h-screen bg-[#F8FAFB]">
