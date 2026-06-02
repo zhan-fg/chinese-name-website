@@ -103,7 +103,7 @@ export async function POST(request: NextRequest) {
       _debug: {
         deduction: deductionStatus,
         anonymousId: anonymousId || "missing",
-        aiMode: (result as Record<string, unknown>)._fallback ? "fallback" : "ai",
+        aiMode: (result as unknown as Record<string, unknown>)._fallback ? "fallback" : "ai",
       },
     });
   } catch (error) {
