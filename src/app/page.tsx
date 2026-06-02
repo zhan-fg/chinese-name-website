@@ -400,7 +400,7 @@ export default function Home() {
       {/* Paywall modal */}
       <PaywallModal
         visible={showPaywall}
-        anonymousId={anonymousId || localStorage.getItem("shan-anon-id") || ""}
+        anonymousId={anonymousId}
         onClose={() => setShowPaywall(false)}
         onCreditRefresh={() => setCreditRefresh((k) => k + 1)}
       />
