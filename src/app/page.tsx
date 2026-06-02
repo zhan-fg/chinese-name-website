@@ -400,8 +400,9 @@ export default function Home() {
       {/* Paywall modal */}
       <PaywallModal
         visible={showPaywall}
-        anonymousId={anonymousId}
+        anonymousId={anonymousId || localStorage.getItem("shan-anon-id") || ""}
         onClose={() => setShowPaywall(false)}
+        onCreditRefresh={() => setCreditRefresh((k) => k + 1)}
       />
 
       {/* Checkout success handler */}
@@ -432,7 +433,10 @@ function CheckoutHandler({
   onCreditRefresh: () => void;
   captureStatus: string | null;
   onCaptureStatus: (s: string | null) => void;
+  capturedEmail?: string;
 }) {
+  const [capturedEmail, setCapturedEmail] = useState<string>("");
+
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     const checkout = params.get("checkout");
@@ -452,6 +456,7 @@ function CheckoutHandler({
           if (data.success) {
             onCaptureStatus("success");
             onCreditRefresh();
+            if (data.email) setCapturedEmail(data.email);
           } else {
             onCaptureStatus("error");
             console.error("Capture failed:", data.error);
@@ -491,7 +496,16 @@ function CheckoutHandler({
         }`}
       >
         {captureStatus === "capturing" && "Confirming payment..."}
-        {captureStatus === "success" && "\u2714 Payment received — credits added!"}
+        {captureStatus === "success" && (
+          <>
+            {"\u2714 Payment received — credits added!"}
+            {capturedEmail && (
+              <span className="block text-[11px] opacity-75 mt-0.5">
+                Linked to {capturedEmail}
+              </span>
+            )}
+          </>
+        )}
         {captureStatus === "error" && "Payment captured but credits may be delayed. Contact us if needed."}
       </div>
     </div>

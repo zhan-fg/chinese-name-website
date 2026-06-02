@@ -8,11 +8,23 @@ interface Props {
   visible: boolean;
   anonymousId: string;
   onClose: () => void;
+  onCreditRefresh?: () => void;
 }
 
-export default function PaywallModal({ visible, anonymousId, onClose }: Props) {
+export default function PaywallModal({
+  visible,
+  anonymousId,
+  onClose,
+  onCreditRefresh,
+}: Props) {
   const [loading, setLoading] = useState<PricingPlanId | null>(null);
   const [error, setError] = useState<string | null>(null);
+
+  // Email recovery
+  const [showRecovery, setShowRecovery] = useState(false);
+  const [recoveryEmail, setRecoveryEmail] = useState("");
+  const [recoveryLoading, setRecoveryLoading] = useState(false);
+  const [recoveryMsg, setRecoveryMsg] = useState<string | null>(null);
 
   const handlePurchase = async (planId: PricingPlanId) => {
     setLoading(planId);
@@ -31,9 +43,48 @@ export default function PaywallModal({ visible, anonymousId, onClose }: Props) {
       if (url) {
         window.location.href = url;
       }
-    } catch (err) {
+    } catch {
       setError("Payment setup failed. Please try again.");
       setLoading(null);
+    }
+  };
+
+  const handleRecover = async () => {
+    if (!recoveryEmail.trim()) return;
+    setRecoveryLoading(true);
+    setRecoveryMsg(null);
+
+    try {
+      const res = await fetch("/api/recover-credits", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          email: recoveryEmail.trim(),
+          anonymousId,
+        }),
+      });
+
+      const data = await res.json();
+
+      if (data.success) {
+        setRecoveryMsg(
+          `Found ${data.creditsRemaining || 0} credits + ${data.freeRemaining || 0} free uses! ${
+            data.isSubscriber ? "(Unlimited)" : ""
+          }`
+        );
+        onCreditRefresh?.();
+        setTimeout(() => {
+          onClose();
+          setRecoveryMsg(null);
+          setShowRecovery(false);
+        }, 2000);
+      } else {
+        setRecoveryMsg("No credits found for that email.");
+      }
+    } catch {
+      setRecoveryMsg("Recovery failed. Please try again.");
+    } finally {
+      setRecoveryLoading(false);
     }
   };
 
@@ -52,7 +103,7 @@ export default function PaywallModal({ visible, anonymousId, onClose }: Props) {
             animate={{ y: 0, opacity: 1 }}
             exit={{ y: 100, opacity: 0 }}
             transition={{ type: "spring", damping: 25, stiffness: 300 }}
-            className="bg-white rounded-t-2xl sm:rounded-2xl p-6 max-w-sm w-full shadow-xl"
+            className="bg-white rounded-t-2xl sm:rounded-2xl p-6 max-w-sm w-full shadow-xl max-h-[90vh] overflow-y-auto"
             onClick={(e) => e.stopPropagation()}
           >
             {/* Handle bar */}
@@ -106,7 +157,7 @@ export default function PaywallModal({ visible, anonymousId, onClose }: Props) {
                       ${(plan.amount / 100).toFixed(2)}
                     </p>
                     {plan.type === "subscription" && (
-                      <p className="text-[10px] text-text-secondary">/month</p>
+                      <p className="text-[10px] text-text-secondary">30 days</p>
                     )}
                   </div>
                 </button>
@@ -117,6 +168,50 @@ export default function PaywallModal({ visible, anonymousId, onClose }: Props) {
             <p className="text-[10px] text-mist text-center mb-3">
               Secured by PayPal &middot; 30-day satisfaction guarantee
             </p>
+
+            {/* Email recovery section */}
+            {!showRecovery ? (
+              <button
+                onClick={() => setShowRecovery(true)}
+                className="w-full py-2 text-xs text-deep-blue hover:text-mid-blue transition-colors mb-1"
+              >
+                Already purchased? Recover your credits &rarr;
+              </button>
+            ) : (
+              <div className="mb-3 p-3 rounded-xl bg-[#EEF4F8] border border-deep-blue/20">
+                <p className="text-xs text-text-secondary mb-2">
+                  Enter the email you used with PayPal to recover your credits.
+                </p>
+                <div className="flex gap-2">
+                  <input
+                    type="email"
+                    value={recoveryEmail}
+                    onChange={(e) => setRecoveryEmail(e.target.value)}
+                    onKeyDown={(e) => e.key === "Enter" && handleRecover()}
+                    placeholder="your@email.com"
+                    className="flex-1 px-3 py-2 rounded-lg border border-card-border text-sm focus:outline-none focus:border-deep-blue"
+                  />
+                  <button
+                    onClick={handleRecover}
+                    disabled={recoveryLoading || !recoveryEmail.trim()}
+                    className="px-4 py-2 rounded-lg bg-deep-blue text-white text-sm font-medium hover:bg-mid-blue transition-colors disabled:opacity-50"
+                  >
+                    {recoveryLoading ? "..." : "Find"}
+                  </button>
+                </div>
+                {recoveryMsg && (
+                  <p
+                    className={`text-xs mt-2 ${
+                      recoveryMsg.includes("Found")
+                        ? "text-green-700"
+                        : "text-red-600"
+                    }`}
+                  >
+                    {recoveryMsg}
+                  </p>
+                )}
+              </div>
+            )}
 
             <button
               onClick={onClose}

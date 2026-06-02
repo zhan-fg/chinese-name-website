@@ -150,6 +150,7 @@ export async function capturePayPalOrder(orderId: string): Promise<{
   planId: string;
   anonymousId: string;
   status: string;
+  payerEmail: string;
 }> {
   const token = await getAccessToken();
 
@@ -171,6 +172,9 @@ export async function capturePayPalOrder(orderId: string): Promise<{
 
   const data = await res.json();
 
+  // Extract payer email from PayPal response
+  const payerEmail = data.payer?.email_address || "";
+
   // Extract metadata from custom_id
   const purchaseUnit = data.purchase_units?.[0];
   let planId = "";
@@ -187,5 +191,5 @@ export async function capturePayPalOrder(orderId: string): Promise<{
     anonymousId = meta.anonymous_id;
   }
 
-  return { planId, anonymousId, status: data.status };
+  return { planId, anonymousId, status: data.status, payerEmail };
 }
