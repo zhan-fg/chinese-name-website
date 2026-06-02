@@ -30,21 +30,35 @@ export default function PaywallModal({
     setLoading(planId);
     setError(null);
 
+    // Fallback: read from localStorage if prop is empty
+    const anonId = anonymousId || (typeof window !== "undefined" ? localStorage.getItem("shan-anon-id") : null);
+    if (!anonId) {
+      setError("Session not ready. Please refresh the page and try again.");
+      setLoading(null);
+      return;
+    }
+
     try {
       const res = await fetch("/api/create-checkout", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ planId, anonymousId }),
+        body: JSON.stringify({ planId, anonymousId: anonId }),
       });
 
-      if (!res.ok) throw new Error("Failed to create checkout");
+      const data = await res.json();
 
-      const { url } = await res.json();
-      if (url) {
-        window.location.href = url;
+      if (!res.ok) {
+        throw new Error(data.error || `Server error: ${res.status}`);
       }
-    } catch {
-      setError("Payment setup failed. Please try again.");
+
+      if (data.url) {
+        window.location.href = data.url;
+      } else {
+        throw new Error("No checkout URL returned");
+      }
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : "Unknown error";
+      setError(`Payment setup failed: ${msg}`);
       setLoading(null);
     }
   };
