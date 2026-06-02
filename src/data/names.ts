@@ -483,10 +483,22 @@ export const fallbackNames: Record<string, NameEntry[]> = {
 };
 
 /**
- * Get a random fallback name for a given category.
- * Falls back to poetry if category not found.
+ * Track last picked index per category to avoid consecutive repeats.
+ */
+const _lastPicked: Record<string, number> = {};
+
+/**
+ * Get a fallback name, avoiding consecutive repeats.
  */
 export function getFallbackName(category: string): NameEntry {
   const pool = fallbackNames[category] || fallbackNames.poetry;
-  return pool[Math.floor(Math.random() * pool.length)];
+  if (pool.length <= 1) return pool[0];
+
+  let idx: number;
+  do {
+    idx = Math.floor(Math.random() * pool.length);
+  } while (idx === _lastPicked[category] && pool.length > 1);
+
+  _lastPicked[category] = idx;
+  return pool[idx];
 }

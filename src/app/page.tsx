@@ -186,6 +186,7 @@ export default function Home() {
           birthHour: birthData?.hour,
           birthMinute: birthData?.minute,
           birthLocation: birthData?.location || undefined,
+          anonymousId: anonymousId || undefined,
         }),
       });
 
