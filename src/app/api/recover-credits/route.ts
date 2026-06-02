@@ -48,7 +48,7 @@ export async function POST(request: NextRequest) {
     // Get or create the current session's user
     const { data: currentUser } = await supabaseAdmin
       .from("users")
-      .select("id, credits_remaining, free_uses_remaining, subscription_status")
+      .select("id, credits_remaining, free_uses_remaining, subscription_status, subscription_end")
       .eq("anonymous_id", anonymousId)
       .single();
 
