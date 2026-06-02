@@ -58,4 +58,8 @@ export interface NameEntry {
   userBridge: string;
   storyTitle: string;
   storyBody: string;
+
+  // Internal flags (not from AI)
+  _fallback?: boolean;
+  _storyLoading?: boolean;
 }

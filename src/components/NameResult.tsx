@@ -12,6 +12,12 @@ interface Props {
   isFallback?: boolean;
 }
 
+function Skeleton({ h = "h-3", w = "w-full" }: { h?: string; w?: string }) {
+  return (
+    <div className={`${h} ${w} bg-mist/15 rounded animate-pulse`} />
+  );
+}
+
 export default function NameResult({
   name,
   onRetry,
@@ -19,6 +25,7 @@ export default function NameResult({
   onShare,
   isFallback,
 }: Props) {
+  const storyLoading = name._storyLoading;
   const [storyOpen, setStoryOpen] = useState(false);
   const [copied, setCopied] = useState(false);
   const [speaking, setSpeaking] = useState(false);
@@ -183,27 +190,47 @@ export default function NameResult({
         <h3 className="text-xs font-medium text-deep-blue uppercase tracking-wider mb-2">
           &#x1F4A1; What it means
         </h3>
-        <p className="text-sm text-text-secondary leading-relaxed">
-          {name.explanation}
-        </p>
-        <div className="mt-4 pt-3 border-t border-deep-blue/10">
-          <p className="text-sm text-text-primary leading-relaxed font-light">
-            {name.userBridge}
-          </p>
-        </div>
+        {storyLoading ? (
+          <div className="space-y-2">
+            <Skeleton h="h-3" w="w-full" />
+            <Skeleton h="h-3" w="w-5/6" />
+            <Skeleton h="h-3" w="w-4/6" />
+            <div className="mt-4 pt-3 border-t border-deep-blue/10 space-y-2">
+              <Skeleton h="h-3" w="w-full" />
+              <Skeleton h="h-3" w="w-3/4" />
+            </div>
+          </div>
+        ) : (
+          <>
+            <p className="text-sm text-text-secondary leading-relaxed">
+              {name.explanation}
+            </p>
+            <div className="mt-4 pt-3 border-t border-deep-blue/10">
+              <p className="text-sm text-text-primary leading-relaxed font-light">
+                {name.userBridge}
+              </p>
+            </div>
+          </>
+        )}
       </div>
 
       {/* Layer 3: Full story (collapsible) */}
       <div className="bg-surface">
         <button
-          onClick={() => setStoryOpen(!storyOpen)}
-          className="w-full px-6 py-3.5 flex items-center justify-between text-sm text-deep-blue hover:bg-[#EEF4F8] transition-colors"
+          onClick={() => !storyLoading && setStoryOpen(!storyOpen)}
+          className={`w-full px-6 py-3.5 flex items-center justify-between text-sm transition-colors ${
+            storyLoading
+              ? "text-mist cursor-wait"
+              : "text-deep-blue hover:bg-[#EEF4F8]"
+          }`}
           aria-expanded={storyOpen}
           aria-label="Toggle full story"
+          disabled={storyLoading}
         >
           <span className="font-medium">
-            {storyOpen ? "\u2212" : "+"} {storyOpen ? "Hide" : "Uncover"} the
-            full story
+            {storyLoading
+              ? "\u23F3 Crafting your story..."
+              : `${storyOpen ? "\u2212" : "+"} ${storyOpen ? "Hide" : "Uncover"} the full story`}
           </span>
         </button>
 

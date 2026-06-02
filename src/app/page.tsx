@@ -197,6 +197,32 @@ export default function Home() {
       const data = await res.json();
       setResult(data);
       goToStep("result");
+
+      // Phase 2: Load story asynchronously
+      if (data._storyLoading !== false) {
+        fetch("/api/generate-story", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            nameData: data,
+            sourceCategory: category,
+            englishName: name || undefined,
+            selfWord: word || undefined,
+            surname: s || undefined,
+          }),
+        })
+          .then((sRes) => sRes.json())
+          .then((story) => {
+            setResult((prev) =>
+              prev ? { ...prev, ...story, _storyLoading: false } : prev
+            );
+          })
+          .catch(() => {
+            setResult((prev) =>
+              prev ? { ...prev, _storyLoading: false } : prev
+            );
+          });
+      }
     } catch (err) {
       console.error("Failed to fetch name:", err);
       setError("Something went wrong. Please try again.");
