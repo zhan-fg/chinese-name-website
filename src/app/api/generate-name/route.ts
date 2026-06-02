@@ -3,6 +3,8 @@ import { generateName } from "@/lib/deepseek";
 import { calculateBazi, formatBaziForPrompt } from "@/lib/bazi";
 import { deductUse } from "@/lib/credits";
 
+export const maxDuration = 30; // Allow up to 30s for AI generation
+
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();

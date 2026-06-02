@@ -56,10 +56,9 @@ const surnameGuide = `COMMON CHINESE SURNAMES (choose the best match or use the 
 林 (Lín/Leen) — forest. Nature-connected.
 马 (Mǎ/Mah) — horse. Energetic, free-spirited.`;
 
-export function buildPrompt(req: GenerateNameRequest, baziAnalysis?: string): string {
-  const { sourceCategory, englishName, selfWord, surname } = req;
-
-  const personalization = [
+function buildPersonalization(req: GenerateNameRequest): string {
+  const { englishName, selfWord, surname } = req;
+  return [
     englishName &&
       `User's English name: "${englishName}". If possible, choose characters whose sounds echo their English name.`,
     selfWord &&
@@ -70,54 +69,78 @@ export function buildPrompt(req: GenerateNameRequest, baziAnalysis?: string): st
   ]
     .filter(Boolean)
     .join("\n");
+}
 
-  return `You are a Chinese cultural scholar who specializes in creating Chinese names for Western audiences. Your audience knows NOTHING about Chinese culture — explain everything with Western analogies (Shakespeare, Greek myths, Tolkien, MBTI, the Bible, Norse sagas, Star Wars — whatever fits best).
+function baziRequirement(baziAnalysis?: string): string {
+  if (!baziAnalysis) return "";
+  return (
+    "BAZI ANALYSIS (八字命理):\n" +
+    baziAnalysis +
+    "\n\n" +
+    "Based on this Bazi chart, the name MUST supplement the weak elements and balance the chart. " +
+    "Choose characters whose Five Element properties fill the gaps identified in the analysis.\n" +
+    "7. CRITICAL FOR BAZI: Both given-name characters MUST supplement the WEAK elements identified above. " +
+    "The first character should target the most deficient element; the second should target the next weakest.\n"
+  );
+}
 
-SOURCE CATEGORY: ${categoryGuides[sourceCategory]}
+export function buildNamePrompt(
+  req: GenerateNameRequest,
+  baziAnalysis?: string
+): string {
+  return `You are a Chinese cultural scholar. Generate a Chinese name (surname + 2-character given name).
+  
+SOURCE CATEGORY: ${categoryGuides[req.sourceCategory]}
 
 ${surnameGuide}
 
-${personalization ? "PERSONALIZATION:\n" + personalization + "\n" : ""}
-${baziAnalysis ? "BAZI ANALYSIS (八字命理):\n" + baziAnalysis + "\n\nBased on this Bazi chart, the name MUST supplement the weak elements and balance the chart. Choose characters whose Five Element properties (according to the element-character mapping above) fill the gaps identified in the analysis.\n" : ""}
-Generate a COMPLETE Chinese name with SURNAME + 2-character GIVEN NAME. You MUST:
-1. Use ONLY real characters from classical Chinese texts or verified historical sources — NO invented names
-2. Choose characters whose pronunciation is reasonably easy for English speakers (avoid ü, avoid zh/ch/sh/r if a simpler alternative exists with same meaning)
-3. Explain every concept using Western analogies
-4. The name must sound beautiful and carry positive, aspirational meaning
-5. The story must be vivid and emotional — make the reader feel something
-6. The surname should be chosen from the common surnames list above UNLESS the user already provided one
-${baziAnalysis ? "7. CRITICAL FOR BAZI: Both given-name characters MUST supplement the WEAK elements identified above. The first character should target the most deficient element; the second should target the next weakest. Explain in the explanation field WHY these characters balance this specific person's chart." : ""}
-
-CRITICAL — Return ONLY this EXACT JSON (no markdown, no explanation outside the JSON):
-
+PERSONALIZATION:
+${buildPersonalization(req)}
+${baziRequirement(baziAnalysis)}
+Return ONLY this JSON (no markdown):
 {
-  "surname": "single character surname (e.g. '李')",
-  "surnamePinyin": "Pinyin with tone (e.g. 'Lǐ')",
+  "surname": "单姓 (e.g. '李')",
+  "surnamePinyin": "with tone (e.g. 'Lǐ')",
   "surnamePhonetic": "English-friendly (e.g. 'Lee')",
-  "surnameMeaning": "meaning in English (e.g. 'plum tree')",
-  "givenChars": "two characters with space between them (e.g. '云 帆')",
-  "fullChars": "surname + given without spaces (e.g. '李云帆')",
-  "chars": "surname + given with spaces (e.g. '李 云 帆')",
-  "pinyin": "Full pinyin with tone marks (e.g. 'Lǐ Yún Fān')",
-  "phonetic": "English-friendly pronunciation (e.g. 'Lee Yoon Fahn')",
-  "meaning": "Full name meaning in 3-5 English words",
-  
-  "char1": "first given-name character",
-  "char1Pinyin": "pinyin of first character",
-  "char1Meaning": "meaning of first character in English",
-  "char2": "second given-name character",
-  "char2Pinyin": "pinyin of second character",
-  "char2Meaning": "meaning of second character in English",
-  
-  "sourceText": "the ORIGINAL Chinese source text (the actual poem line or classical quote)",
-  "sourceAttribution": "attribution in Chinese + English (e.g. '李白《行路难》— Li Bai, The Hard Road (Tang Dynasty, 744 AD)')",
-  "sourceTranslation": "elegant English translation of the source text (poetic, not literal)",
-  
-  "explanation": "Cultural explanation for a Western audience (40-70 words). Use a Western analogy. Example: 'Think of this like Odysseus staring at the open sea — the poet is saying that no matter how impossible the journey seems, the winds will turn.'",
-  
-  "userBridge": "One sentence connecting this name to the user's identity. Pattern: 'If you chose this name, you're the kind of person who...' Make it specific and emotionally resonant.",
-  
-  "storyTitle": "Story title in English (catchy, like a documentary episode title — max 8 words)",
-  "storyBody": "The full story (120-200 words). Tell it like a podcast narrative: who created this, when, under what circumstances, what were they feeling, what does it mean for someone who carries this name today. Use vivid, emotional language. Make the user feel something."
+  "surnameMeaning": "English meaning (e.g. 'plum tree')",
+  "givenChars": "two chars with space (e.g. '云 帆')",
+  "fullChars": "no spaces (e.g. '李云帆')",
+  "chars": "with spaces (e.g. '李 云 帆')",
+  "pinyin": "with tone marks (e.g. 'Lǐ Yún Fān')",
+  "phonetic": "English-friendly (e.g. 'Lee Yoon Fahn')",
+  "meaning": "3-5 English words",
+  "char1": "first given character",
+  "char1Pinyin": "pinyin",
+  "char1Meaning": "English meaning",
+  "char2": "second given character",
+  "char2Pinyin": "pinyin",
+  "char2Meaning": "English meaning",
+  "sourceText": "ORIGINAL Chinese source (poem line or classical quote)",
+  "sourceAttribution": "Chinese + English (e.g. '李白《行路难》— Li Bai, The Hard Road (Tang, 744 AD)')",
+  "sourceTranslation": "elegant English translation of source"
+}`;
+}
+
+export function buildStoryPrompt(
+  req: GenerateNameRequest,
+  nameData: Record<string, string>,
+  baziAnalysis?: string
+): string {
+  return `You are a Chinese cultural scholar. Write narrative content for this Chinese name:
+- Characters: ${nameData.chars}
+- Meaning: ${nameData.meaning}
+- Source: ${nameData.sourceText}
+- Category: ${req.sourceCategory}
+
+${buildPersonalization(req)}
+${baziRequirement(baziAnalysis)}
+Use Western analogies (Shakespeare, Greek myths, Tolkien, MBTI, etc.). 
+
+Return ONLY this JSON:
+{
+  "explanation": "40-70 words. Use a Western analogy. Example: 'Think of this like Odysseus staring at the open sea — the poet is saying...'",
+  "userBridge": "One sentence: 'If you chose this name, you're the kind of person who...' Make it specific and resonant.",
+  "storyTitle": "Catchy title, max 8 words",
+  "storyBody": "80-130 words. Podcast narrative: who created this, when, under what circumstances, what does it mean today. Use vivid, emotional language."
 }`;
 }
