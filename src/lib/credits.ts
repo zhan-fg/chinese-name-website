@@ -130,7 +130,7 @@ export async function deductUse(anonymousId: string): Promise<void> {
 }
 
 /**
- * Add credits to a user (called by Stripe webhook)
+ * Add credits to a user by stripe_customer_id (legacy Stripe, kept for compatibility)
  */
 export async function addCredits(stripeCustomerId: string, amount: number): Promise<void> {
   const { error } = await supabaseAdmin.rpc("add_credits", {
@@ -156,6 +156,33 @@ export async function addCredits(stripeCustomerId: string, amount: number): Prom
         .eq("id", user.id);
     }
   }
+}
+
+/**
+ * Add credits to a user by anonymous_id (PayPal flow)
+ */
+export async function addCreditsByAnonymousId(
+  anonymousId: string,
+  amount: number
+): Promise<void> {
+  const { data: user } = await supabaseAdmin
+    .from("users")
+    .select("id, credits_remaining")
+    .eq("anonymous_id", anonymousId)
+    .single();
+
+  if (!user) {
+    console.error("addCreditsByAnonymousId: user not found:", anonymousId);
+    return;
+  }
+
+  await supabaseAdmin
+    .from("users")
+    .update({
+      credits_remaining: (user.credits_remaining || 0) + amount,
+      updated_at: new Date().toISOString(),
+    })
+    .eq("id", user.id);
 }
 
 /**

@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { PRICING_PLANS, type PricingPlanId } from "@/lib/stripe";
+import { PRICING_PLANS, type PricingPlanId } from "@/lib/paypal";
 
 interface Props {
   visible: boolean;
@@ -115,8 +115,7 @@ export default function PaywallModal({ visible, anonymousId, onClose }: Props) {
 
             {/* Trust */}
             <p className="text-[10px] text-mist text-center mb-3">
-              Secured by Stripe &middot; Cancel anytime &middot; 30-day
-              satisfaction guarantee
+              Secured by PayPal &middot; 30-day satisfaction guarantee
             </p>
 
             <button

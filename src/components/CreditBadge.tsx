@@ -11,14 +11,16 @@ interface CreditBalance {
 
 interface Props {
   anonymousId: string;
+  refreshKey?: number;
 }
 
-export default function CreditBadge({ anonymousId }: Props) {
+export default function CreditBadge({ anonymousId, refreshKey }: Props) {
   const [balance, setBalance] = useState<CreditBalance | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     if (!anonymousId) return;
+    setLoading(true);
     fetch(`/api/check-credits?anonymousId=${encodeURIComponent(anonymousId)}`)
       .then((res) => res.json())
       .then((data) => {
@@ -26,7 +28,7 @@ export default function CreditBadge({ anonymousId }: Props) {
         setLoading(false);
       })
       .catch(() => setLoading(false));
-  }, [anonymousId]);
+  }, [anonymousId, refreshKey]);
 
   if (loading || !balance) {
     return (

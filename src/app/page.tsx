@@ -43,6 +43,8 @@ export default function Home() {
   const [showShare, setShowShare] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [showPaywall, setShowPaywall] = useState(false);
+  const [creditRefresh, setCreditRefresh] = useState(0);
+  const [captureStatus, setCaptureStatus] = useState<string | null>(null);
 
   // Anonymous user ID — persisted in localStorage for credit tracking
   const [anonymousId, setAnonymousId] = useState("");
@@ -234,7 +236,7 @@ export default function Home() {
           <h1 className="text-xl font-light text-text-primary tracking-wide">
             Shan Shui
           </h1>
-          {anonymousId && <CreditBadge anonymousId={anonymousId} />}
+          {anonymousId && <CreditBadge anonymousId={anonymousId} refreshKey={creditRefresh} />}
         </div>
         <p className="text-xs text-text-secondary mt-1">
           Your Chinese name, rooted in 3,000 years of poetry and legend
@@ -369,29 +371,94 @@ export default function Home() {
 
       {/* Checkout success handler */}
       {typeof window !== "undefined" && (
-        <CheckoutHandler anonymousId={anonymousId} />
+        <CheckoutHandler
+          anonymousId={anonymousId}
+          onCreditRefresh={() => setCreditRefresh((k) => k + 1)}
+          captureStatus={captureStatus}
+          onCaptureStatus={setCaptureStatus}
+        />
       )}
     </main>
   );
 }
 
 /**
- * Handles checkout success/cancel from Stripe redirect.
- * Shows a toast and refreshes credit balance.
+ * Handles PayPal checkout redirect.
+ * When user returns from PayPal with ?checkout=success&token=ORDER_ID,
+ * captures the order and credits the user.
  */
-function CheckoutHandler({ anonymousId }: { anonymousId: string }) {
+function CheckoutHandler({
+  anonymousId,
+  onCreditRefresh,
+  captureStatus,
+  onCaptureStatus,
+}: {
+  anonymousId: string;
+  onCreditRefresh: () => void;
+  captureStatus: string | null;
+  onCaptureStatus: (s: string | null) => void;
+}) {
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     const checkout = params.get("checkout");
+    const token = params.get("token"); // PayPal order ID
 
-    if (checkout === "success") {
+    if (checkout === "success" && token && anonymousId) {
+      // Capture PayPal order
+      onCaptureStatus("capturing");
+
+      fetch("/api/capture-paypal-order", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ orderId: token, anonymousId }),
+      })
+        .then((res) => res.json())
+        .then((data) => {
+          if (data.success) {
+            onCaptureStatus("success");
+            onCreditRefresh();
+          } else {
+            onCaptureStatus("error");
+            console.error("Capture failed:", data.error);
+          }
+        })
+        .catch((err) => {
+          console.error("Capture error:", err);
+          onCaptureStatus("error");
+        });
+
       // Clean URL
       window.history.replaceState({}, "", "/");
-      // Refresh credits will happen on next credit badge load
     } else if (checkout === "cancelled") {
       window.history.replaceState({}, "", "/");
     }
-  }, []);
+  }, [anonymousId]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  return null;
+  // Auto-dismiss status after 5 seconds
+  useEffect(() => {
+    if (captureStatus && captureStatus !== "capturing") {
+      const t = setTimeout(() => onCaptureStatus(null), 5000);
+      return () => clearTimeout(t);
+    }
+  }, [captureStatus]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  if (!captureStatus) return null;
+
+  return (
+    <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50">
+      <div
+        className={`px-4 py-2.5 rounded-xl text-sm font-medium shadow-lg ${
+          captureStatus === "capturing"
+            ? "bg-surface border border-card-border text-text-secondary"
+            : captureStatus === "success"
+            ? "bg-green-50 border border-green-200 text-green-700"
+            : "bg-red-50 border border-red-200 text-red-700"
+        }`}
+      >
+        {captureStatus === "capturing" && "Confirming payment..."}
+        {captureStatus === "success" && "\u2714 Payment received — credits added!"}
+        {captureStatus === "error" && "Payment captured but credits may be delayed. Contact us if needed."}
+      </div>
+    </div>
+  );
 }

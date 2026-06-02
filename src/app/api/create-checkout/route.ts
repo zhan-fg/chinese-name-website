@@ -1,11 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
-import { createCheckoutSession } from "@/lib/stripe";
+import { createCheckoutSession } from "@/lib/paypal";
 
-const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || "https://chinese-name-website.vercel.app";
+const SITE_URL =
+  process.env.NEXT_PUBLIC_SITE_URL || "https://chinese-name-website.vercel.app";
 
 /**
  * POST /api/create-checkout
- * Creates a Stripe Checkout session and returns the URL.
+ * Creates a PayPal order and returns the approval URL.
  */
 export async function POST(request: NextRequest) {
   try {

@@ -3,7 +3,7 @@ import type { Metadata } from "next";
 export const metadata: Metadata = {
   title: "Pricing",
   description:
-    "Shan Shui pricing — 3 free names, then affordable credit packs or unlimited subscription. Secure payments via Stripe.",
+    "Shan Shui pricing — 3 free names, then affordable credit packs or monthly access. Secure payments via PayPal.",
 };
 
 const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || "https://chinese-name-website.vercel.app";
@@ -73,34 +73,32 @@ export default function PricingPage() {
               Unlimited
             </p>
             <p className="text-2xl font-light text-text-primary mb-1">$4.99</p>
-            <p className="text-xs text-text-secondary mb-4">per month</p>
+            <p className="text-xs text-text-secondary mb-4">30 days</p>
             <ul className="text-xs text-text-secondary space-y-2 mb-6 flex-1 text-left">
               <li>&#x2022; Unlimited generations</li>
               <li>&#x2022; Everything in Free</li>
               <li>&#x2022; Save name history</li>
-              <li>&#x2022; PDF name certificate</li>
               <li>&#x2022; Cancel anytime</li>
             </ul>
             <a
               href={`${SITE_URL}?pricing=subscription`}
               className="block w-full py-2.5 rounded-lg bg-deep-blue text-white text-sm font-medium hover:bg-mid-blue transition-colors"
             >
-              Subscribe Monthly
+              Get 30 Days
             </a>
           </div>
         </div>
 
         <div className="mt-10 p-5 rounded-card bg-surface border border-card-border text-center">
           <p className="text-xs text-text-secondary mb-3">
-            All payments are securely processed by Stripe.
-            Your card never touches our servers.
+            All payments are securely processed by PayPal.
+            Your financial data never touches our servers.
           </p>
           <div className="flex justify-center gap-2 text-[10px] text-mist">
+            <span>&#x2022; PayPal</span>
             <span>&#x2022; Visa</span>
             <span>&#x2022; Mastercard</span>
             <span>&#x2022; Amex</span>
-            <span>&#x2022; Apple Pay</span>
-            <span>&#x2022; Google Pay</span>
           </div>
         </div>
       </div>
