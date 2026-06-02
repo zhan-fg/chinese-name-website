@@ -154,19 +154,27 @@ export default function Home() {
   };
 
   const fetchName = async (name: string, word: string, s: string) => {
+    // Wait for anonymousId to be ready
+    const anonId = anonymousId || localStorage.getItem("shan-anon-id");
+    
     // Check credits before generating
-    try {
-      const checkRes = await fetch(
-        `/api/check-credits?anonymousId=${encodeURIComponent(anonymousId)}`
-      );
-      const credits = await checkRes.json();
+    if (anonId) {
+      try {
+        const checkRes = await fetch(
+          `/api/check-credits?anonymousId=${encodeURIComponent(anonId)}`
+        );
+        const credits = await checkRes.json();
 
-      if (!credits.isSubscriber && credits.freeRemaining <= 0 && credits.creditsRemaining <= 0) {
-        setShowPaywall(true);
-        return;
+        // Only enforce limit if we got valid credit data
+        if (!credits.error && credits.totalRemaining !== undefined) {
+          if (!credits.isSubscriber && credits.freeRemaining <= 0 && credits.creditsRemaining <= 0) {
+            setShowPaywall(true);
+            return;
+          }
+        }
+      } catch {
+        // If credit check fails, allow generation (fail open)
       }
-    } catch {
-      // If credit check fails, allow generation (fail open)
     }
 
     setStep("loading");
@@ -186,7 +194,7 @@ export default function Home() {
           birthHour: birthData?.hour,
           birthMinute: birthData?.minute,
           birthLocation: birthData?.location || undefined,
-          anonymousId: anonymousId || undefined,
+          anonymousId: anonId || undefined,
         }),
       });
 
