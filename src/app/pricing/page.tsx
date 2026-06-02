@@ -1,12 +1,9 @@
+"use client";
+
 import type { Metadata } from "next";
 
-export const metadata: Metadata = {
-  title: "Pricing",
-  description:
-    "Shan Shui pricing — 3 free names, then affordable credit packs or monthly access. Secure payments via PayPal.",
-};
-
-const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || "https://chinese-name-website.vercel.app";
+const SITE_URL =
+  process.env.NEXT_PUBLIC_SITE_URL || "https://chinese-name-website.vercel.app";
 
 export default function PricingPage() {
   return (
@@ -36,7 +33,7 @@ export default function PricingPage() {
               <li>&#x2022; Share card</li>
             </ul>
             <a
-              href={SITE_URL}
+              href="/"
               className="block w-full py-2.5 rounded-lg border border-card-border text-text-secondary text-sm hover:bg-gray-50 transition-colors"
             >
               Get Started
@@ -56,12 +53,14 @@ export default function PricingPage() {
               <li>&#x2022; Credits never expire</li>
               <li>&#x2022; One-time payment</li>
             </ul>
-            <a
-              href={`${SITE_URL}?pricing=credit_5`}
+            <button
+              onClick={() =>
+                (window.location.href = "/?buy=credit_5")
+              }
               className="block w-full py-2.5 rounded-lg bg-deep-blue text-white text-sm font-medium hover:bg-mid-blue transition-colors"
             >
               Buy 5 Credits
-            </a>
+            </button>
           </div>
 
           {/* Unlimited */}
@@ -80,19 +79,21 @@ export default function PricingPage() {
               <li>&#x2022; Save name history</li>
               <li>&#x2022; Cancel anytime</li>
             </ul>
-            <a
-              href={`${SITE_URL}?pricing=subscription`}
+            <button
+              onClick={() =>
+                (window.location.href = "/?buy=subscription")
+              }
               className="block w-full py-2.5 rounded-lg bg-deep-blue text-white text-sm font-medium hover:bg-mid-blue transition-colors"
             >
               Get 30 Days
-            </a>
+            </button>
           </div>
         </div>
 
         <div className="mt-10 p-5 rounded-card bg-surface border border-card-border text-center">
           <p className="text-xs text-text-secondary mb-3">
-            All payments are securely processed by PayPal.
-            Your financial data never touches our servers.
+            All payments are securely processed by PayPal. Your financial data
+            never touches our servers.
           </p>
           <div className="flex justify-center gap-2 text-[10px] text-mist">
             <span>&#x2022; PayPal</span>

@@ -57,6 +57,17 @@ export default function Home() {
     setAnonymousId(id);
   }, []);
 
+  // Detect ?buy=credit_5 etc. from pricing page → show PaywallModal
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const buy = params.get("buy");
+    if (buy && anonymousId) {
+      setShowPaywall(true);
+      // Clean URL
+      window.history.replaceState({}, "", "/");
+    }
+  }, [anonymousId]);
+
   // Prevent pushing history during popstate handling
   const skipHistory = useRef(false);
 

@@ -86,15 +86,26 @@ export async function POST(request: NextRequest) {
     );
 
     // Deduct credit after successful generation
+    let deductionStatus = "skipped";
     if (anonymousId) {
       try {
         await deductUse(anonymousId);
+        deductionStatus = "ok";
       } catch (err) {
         console.error("Failed to deduct credit:", err);
+        deductionStatus = "failed";
       }
     }
 
-    return NextResponse.json(result);
+    // Include diagnostics in the response
+    return NextResponse.json({
+      ...result,
+      _debug: {
+        deduction: deductionStatus,
+        anonymousId: anonymousId || "missing",
+        aiMode: (result as Record<string, unknown>)._fallback ? "fallback" : "ai",
+      },
+    });
   } catch (error) {
     console.error("API route error:", error);
     return NextResponse.json(

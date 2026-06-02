@@ -3,7 +3,7 @@ import type { Metadata } from "next";
 export const metadata: Metadata = {
   title: "Contact Us",
   description:
-    "Contact the Shan Shui team — questions, feedback, bug reports, and partnership inquiries.",
+    "Contact the Shan Shui team — questions, feedback, and bug reports.",
 };
 
 export default function ContactPage() {
@@ -20,20 +20,21 @@ export default function ContactPage() {
         <div className="space-y-6 text-sm text-text-secondary leading-relaxed">
           <div className="card p-5">
             <h2 className="text-base font-medium text-text-primary mb-3">
-              GitHub
+              Email
             </h2>
-            <p>
-              The best way to reach us is through our GitHub repository. You can
-              open an issue, start a discussion, or submit a pull request.
+            <p className="mb-2">
+              For bug reports, feature requests, partnership inquiries, and
+              press — reach us at:
             </p>
             <a
-              href="https://github.com/zhan-fg/chinese-name-website"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="inline-block mt-2 text-deep-blue hover:underline font-medium"
+              href="mailto:shanshui.name@gmail.com"
+              className="inline-block text-deep-blue hover:underline font-medium text-base"
             >
-              github.com/zhan-fg/chinese-name-website &rarr;
+              shanshui.name@gmail.com
             </a>
+            <p className="mt-3 text-xs text-mist">
+              We typically respond within 2-3 business days.
+            </p>
           </div>
 
           <div className="card p-5">
@@ -65,17 +66,6 @@ export default function ContactPage() {
                 Shan Shui.
               </li>
             </ul>
-          </div>
-
-          <div className="card p-5">
-            <h2 className="text-base font-medium text-text-primary mb-3">
-              Response Time
-            </h2>
-            <p>
-              We are a small independent project. We aim to respond to all
-              inquiries within 3-5 business days. Bug reports and cultural
-              accuracy issues are prioritized.
-            </p>
           </div>
         </div>
       </div>
