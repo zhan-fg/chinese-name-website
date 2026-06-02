@@ -10,6 +10,8 @@ import NameResult from "@/components/NameResult";
 import ShareCard from "@/components/ShareCard";
 import StepIndicator from "@/components/StepIndicator";
 import BaziDisclaimer from "@/components/BaziDisclaimer";
+import CreditBadge from "@/components/CreditBadge";
+import PaywallModal from "@/components/PaywallModal";
 
 type Step = "category" | "userinfo" | "surname" | "loading" | "result";
 
@@ -40,6 +42,18 @@ export default function Home() {
   const [result, setResult] = useState<NameEntry | null>(null);
   const [showShare, setShowShare] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [showPaywall, setShowPaywall] = useState(false);
+
+  // Anonymous user ID — persisted in localStorage for credit tracking
+  const [anonymousId, setAnonymousId] = useState("");
+  useEffect(() => {
+    let id = localStorage.getItem("shan-anon-id");
+    if (!id) {
+      id = "anon_" + crypto.randomUUID();
+      localStorage.setItem("shan-anon-id", id);
+    }
+    setAnonymousId(id);
+  }, []);
 
   // Prevent pushing history during popstate handling
   const skipHistory = useRef(false);
@@ -138,6 +152,21 @@ export default function Home() {
   };
 
   const fetchName = async (name: string, word: string, s: string) => {
+    // Check credits before generating
+    try {
+      const checkRes = await fetch(
+        `/api/check-credits?anonymousId=${encodeURIComponent(anonymousId)}`
+      );
+      const credits = await checkRes.json();
+
+      if (!credits.isSubscriber && credits.freeRemaining <= 0 && credits.creditsRemaining <= 0) {
+        setShowPaywall(true);
+        return;
+      }
+    } catch {
+      // If credit check fails, allow generation (fail open)
+    }
+
     setStep("loading");
     skipHistory.current = false; // loading step doesn't push history
     try {
@@ -201,9 +230,12 @@ export default function Home() {
     <main className="min-h-screen bg-[#F8FAFB] flex flex-col">
       {/* Header */}
       <header className="text-center pt-8 pb-4 px-4">
-        <h1 className="text-xl font-light text-text-primary tracking-wide">
-          Shan Shui
-        </h1>
+        <div className="flex items-center justify-center gap-3 mb-2">
+          <h1 className="text-xl font-light text-text-primary tracking-wide">
+            Shan Shui
+          </h1>
+          {anonymousId && <CreditBadge anonymousId={anonymousId} />}
+        </div>
         <p className="text-xs text-text-secondary mt-1">
           Your Chinese name, rooted in 3,000 years of poetry and legend
         </p>
@@ -308,6 +340,8 @@ export default function Home() {
           <a href="/about" className="text-[11px] text-mist hover:text-text-secondary transition-colors">About</a>
           <span className="text-mist/40 text-[11px]">&middot;</span>
           <a href="/contact" className="text-[11px] text-mist hover:text-text-secondary transition-colors">Contact</a>
+          <span className="text-mist/40 text-[11px]">&middot;</span>
+          <a href="/pricing" className="text-[11px] text-mist hover:text-text-secondary transition-colors">Pricing</a>
         </nav>
         <nav className="flex justify-center gap-3 flex-wrap">
           <a href="/privacy" className="text-[11px] text-mist hover:text-text-secondary transition-colors">Privacy</a>
@@ -325,6 +359,39 @@ export default function Home() {
       {showShare && result && (
         <ShareCard name={result} onClose={() => setShowShare(false)} />
       )}
+
+      {/* Paywall modal */}
+      <PaywallModal
+        visible={showPaywall}
+        anonymousId={anonymousId}
+        onClose={() => setShowPaywall(false)}
+      />
+
+      {/* Checkout success handler */}
+      {typeof window !== "undefined" && (
+        <CheckoutHandler anonymousId={anonymousId} />
+      )}
     </main>
   );
+}
+
+/**
+ * Handles checkout success/cancel from Stripe redirect.
+ * Shows a toast and refreshes credit balance.
+ */
+function CheckoutHandler({ anonymousId }: { anonymousId: string }) {
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const checkout = params.get("checkout");
+
+    if (checkout === "success") {
+      // Clean URL
+      window.history.replaceState({}, "", "/");
+      // Refresh credits will happen on next credit badge load
+    } else if (checkout === "cancelled") {
+      window.history.replaceState({}, "", "/");
+    }
+  }, []);
+
+  return null;
 }
