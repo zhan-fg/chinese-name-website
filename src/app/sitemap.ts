@@ -1,7 +1,9 @@
 import { MetadataRoute } from "next";
 
 const SITE_URL =
-  process.env.NEXT_PUBLIC_SITE_URL || "https://chinese-name-website.vercel.app";
+  process.env.NEXT_PUBLIC_SITE_URL ||
+  (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : undefined) ||
+  "https://chinese-name-website.vercel.app";
 
 const lastMod = new Date("2025-06-02");
 

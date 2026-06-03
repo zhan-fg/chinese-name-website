@@ -11,7 +11,10 @@ const inter = Inter({
   display: "swap",
 });
 
-const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || "https://chinese-name-website.vercel.app";
+const SITE_URL =
+  process.env.NEXT_PUBLIC_SITE_URL ||
+  (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : undefined) ||
+  "https://chinese-name-website.vercel.app";
 const SITE_NAME = "Shan Shui";
 const TAGLINE = "Your Chinese Name, Rooted in 3,000 Years of Poetry and Legend";
 
