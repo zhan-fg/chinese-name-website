@@ -123,27 +123,41 @@ export async function checkCanGenerate(anonymousId: string): Promise<{
 export async function deductUse(anonymousId: string): Promise<void> {
   const user = await ensureUser(anonymousId);
 
+  // If Supabase returned a fallback user, deduction can't work
+  if (user.id === "fallback") {
+    throw new Error("Cannot deduct: using fallback user (Supabase insert failed)");
+  }
+
   if (user.subscription_status === "active") {
-    // Subscriber — no deduction needed
     return;
   }
 
   if (user.free_uses_remaining > 0) {
-    await supabaseAdmin
+    const { error } = await supabaseAdmin
       .from("users")
       .update({
         free_uses_remaining: user.free_uses_remaining - 1,
         updated_at: new Date().toISOString(),
       })
-      .eq("id", user.id);
+      .eq("id", user.id)
+      .eq("free_uses_remaining", user.free_uses_remaining); // optimistic lock
+
+    if (error) {
+      throw new Error(`Deduction update failed: ${error.message}`);
+    }
   } else if (user.credits_remaining > 0) {
-    await supabaseAdmin
+    const { error } = await supabaseAdmin
       .from("users")
       .update({
         credits_remaining: user.credits_remaining - 1,
         updated_at: new Date().toISOString(),
       })
-      .eq("id", user.id);
+      .eq("id", user.id)
+      .eq("credits_remaining", user.credits_remaining);
+
+    if (error) {
+      throw new Error(`Deduction update failed: ${error.message}`);
+    }
   }
 }
 
