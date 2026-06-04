@@ -3,13 +3,12 @@ import { supabaseAdmin } from "@/lib/supabase";
 
 /**
  * GET /api/debug
- * Health check: Supabase connection, DeepSeek API key status, env vars.
- * Only returns safe info (no secret values).
+ * Health check: Supabase, DeepSeek, PayPal, and table schema.
  */
 export async function GET() {
   const checks: Record<string, unknown> = {};
 
-  // 1. Supabase
+  // 1. Supabase connection
   try {
     const start = Date.now();
     const { error } = await supabaseAdmin
@@ -25,7 +24,31 @@ export async function GET() {
     checks.supabase = { ok: false, error: String(e) };
   }
 
-  // 2. DeepSeek API key
+  // 2. Table structure — try a test insert/delete
+  try {
+    const testId = "debug_test_" + Date.now();
+    const { error: insertErr } = await supabaseAdmin
+      .from("users")
+      .insert({
+        anonymous_id: testId,
+        free_uses_remaining: 999,
+        credits_remaining: 0,
+        subscription_status: "none",
+      })
+      .select("id");
+
+    if (insertErr) {
+      checks.table = { ok: false, error: insertErr.message, hint: insertErr.hint || null };
+    } else {
+      // Clean up test row
+      await supabaseAdmin.from("users").delete().eq("anonymous_id", testId);
+      checks.table = { ok: true };
+    }
+  } catch (e) {
+    checks.table = { ok: false, error: String(e) };
+  }
+
+  // 3. DeepSeek
   const apiKey = process.env.DEEPSEEK_API_KEY || "";
   checks.deepseek = {
     configured: !!(apiKey && apiKey !== "your_deepseek_api_key_here"),
@@ -34,27 +57,10 @@ export async function GET() {
       : "NOT SET",
   };
 
-  // 3. PayPal
-  const paypalId = process.env.PAYPAL_CLIENT_ID || "";
+  // 4. PayPal
   checks.paypal = {
-    configured: !!paypalId,
+    configured: !!process.env.PAYPAL_CLIENT_ID,
     mode: process.env.PAYPAL_MODE || "not set",
-  };
-
-  // 4. Env var names
-  checks.env = {
-    supabase_url: process.env.SUPABASE_URL ? "set" : "missing",
-    supabase_anon_key: process.env.SUPABASE_ANON_KEY ? "set" : "missing",
-    supabase_service_role: process.env.SUPABASE_SERVICE_ROLE_KEY
-      ? "set"
-      : "missing",
-    next_public_supabase_url: process.env.NEXT_PUBLIC_SUPABASE_URL
-      ? "set"
-      : "missing",
-    next_public_supabase_anon_key: process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
-      ? "set"
-      : "missing",
-    site_url: process.env.NEXT_PUBLIC_SITE_URL || "fallback",
   };
 
   return NextResponse.json(checks);
