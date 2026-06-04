@@ -4,15 +4,27 @@ const FREE_USES = 3;
 const MAX_FREE_ACCOUNTS_PER_IP = 2;
 const DAILY_LIMIT = 50;
 
-// Detect if daily tracking columns exist (cached in module scope)
+interface UserRow {
+  id: string;
+  anonymous_id: string;
+  email: string | null;
+  free_uses_remaining: number;
+  credits_remaining: number;
+  subscription_status: string;
+  subscription_end: string | null;
+  stripe_customer_id: string | null;
+  ip_address: string | null;
+  daily_uses: number | null;
+  daily_date: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
 let _dailyColumnsExist: boolean | null = null;
 async function dailyColumnsReady(): Promise<boolean> {
   if (_dailyColumnsExist !== null) return _dailyColumnsExist;
   try {
-    const { error } = await supabaseAdmin
-      .from("users")
-      .select("daily_uses")
-      .limit(1);
+    const { error } = await supabaseAdmin.from("users").select("daily_uses").limit(1);
     _dailyColumnsExist = !error;
   } catch {
     _dailyColumnsExist = false;
@@ -20,22 +32,38 @@ async function dailyColumnsReady(): Promise<boolean> {
   return _dailyColumnsExist;
 }
 
-export async function ensureUser(anonymousId: string, ip?: string) {
-  const hasDaily = await dailyColumnsReady();
-  const cols = hasDaily
-    ? "id, free_uses_remaining, credits_remaining, subscription_status, daily_uses, daily_date"
-    : "id, free_uses_remaining, credits_remaining, subscription_status";
+function toRow(data: Record<string, unknown> | null, hasDaily: boolean): UserRow {
+  const d = (data || {}) as Record<string, unknown>;
+  return {
+    id: (d.id as string) || "",
+    anonymous_id: (d.anonymous_id as string) || "",
+    email: (d.email as string) || null,
+    free_uses_remaining: (d.free_uses_remaining as number) ?? 0,
+    credits_remaining: (d.credits_remaining as number) ?? 0,
+    subscription_status: (d.subscription_status as string) || "none",
+    subscription_end: (d.subscription_end as string) || null,
+    stripe_customer_id: (d.stripe_customer_id as string) || null,
+    ip_address: (d.ip_address as string) || null,
+    daily_uses: hasDaily ? ((d.daily_uses as number) ?? 0) : 0,
+    daily_date: hasDaily ? ((d.daily_date as string) || null) : null,
+    created_at: (d.created_at as string) || "",
+    updated_at: (d.updated_at as string) || "",
+  };
+}
 
-  const { data: existing } = await supabaseAdmin
+export async function ensureUser(anonymousId: string, ip?: string): Promise<UserRow> {
+  const hasDaily = await dailyColumnsReady();
+
+  const { data: row } = await supabaseAdmin
     .from("users")
-    .select(cols)
+    .select("*")
     .eq("anonymous_id", anonymousId)
     .single();
 
-  if (existing) return existing;
+  if (row) return toRow(row as Record<string, unknown>, hasDaily);
 
+  // New user
   let freeUses = FREE_USES;
-
   if (ip) {
     try {
       const { count } = await supabaseAdmin
@@ -47,41 +75,35 @@ export async function ensureUser(anonymousId: string, ip?: string) {
     } catch {}
   }
 
-  // Build insert object — include daily columns only if they exist
-  const insertObj: Record<string, unknown> = {
+  const ins: Record<string, unknown> = {
     anonymous_id: anonymousId,
     free_uses_remaining: freeUses,
     credits_remaining: 0,
     subscription_status: "none",
   };
   if (hasDaily) {
-    insertObj.daily_uses = 0;
-    insertObj.daily_date = new Date().toISOString().slice(0, 10);
+    ins.daily_uses = 0;
+    ins.daily_date = new Date().toISOString().slice(0, 10);
   }
 
   const { data: created, error } = await supabaseAdmin
     .from("users")
-    .insert(insertObj)
-    .select(cols)
+    .insert(ins)
+    .select("*")
     .single();
 
-  if (error) {
+  if (error || !created) {
     console.error("Failed to create user:", error);
-    return {
-      id: "fallback",
-      free_uses_remaining: freeUses,
-      credits_remaining: 0,
-      subscription_status: "none",
-    };
+    throw new Error("Cannot create user: " + (error?.message || "unknown"));
   }
 
-  if (ip && created) {
+  if (ip) {
     try {
-      await supabaseAdmin.from("users").update({ ip_address: ip }).eq("id", (created as unknown as Record<string, unknown>).id);
+      await supabaseAdmin.from("users").update({ ip_address: ip }).eq("id", (created as Record<string, unknown>).id);
     } catch {}
   }
 
-  return created;
+  return toRow(created as Record<string, unknown>, hasDaily);
 }
 
 export async function getAvailableUses(anonymousId: string, ip?: string): Promise<{
@@ -91,93 +113,69 @@ export async function getAvailableUses(anonymousId: string, ip?: string): Promis
   isSubscriber: boolean;
   dailyRemaining?: number;
 }> {
-  const user = await ensureUser(anonymousId, ip);
-  const isSubscriber = user.subscription_status === "active";
+  const u = await ensureUser(anonymousId, ip);
+  const isSubscriber = u.subscription_status === "active";
 
-  if (isSubscriber) {
-    const u = user as Record<string, unknown>;
-    if (u.daily_uses !== undefined) {
-      const today = new Date().toISOString().slice(0, 10);
-      const du = (u.daily_uses as number) || 0;
-      const dd = (u.daily_date as string) || "";
-      const used = dd === today ? du : 0;
-      const remaining = Math.max(0, DAILY_LIMIT - used);
-      return {
-        freeRemaining: user.free_uses_remaining,
-        creditsRemaining: user.credits_remaining,
-        totalRemaining: remaining > 0 ? 999_999 : 0,
-        isSubscriber,
-        dailyRemaining: remaining,
-      };
-    }
+  if (isSubscriber && u.daily_date !== null) {
+    const today = new Date().toISOString().slice(0, 10);
+    const used = u.daily_date === today ? (u.daily_uses ?? 0) : 0;
+    const remaining = Math.max(0, DAILY_LIMIT - used);
+    return {
+      freeRemaining: u.free_uses_remaining,
+      creditsRemaining: u.credits_remaining,
+      totalRemaining: remaining > 0 ? 999_999 : 0,
+      isSubscriber,
+      dailyRemaining: remaining,
+    };
   }
 
   return {
-    freeRemaining: user.free_uses_remaining,
-    creditsRemaining: user.credits_remaining,
-    totalRemaining: user.free_uses_remaining + user.credits_remaining + (isSubscriber ? 999_999 : 0),
+    freeRemaining: u.free_uses_remaining,
+    creditsRemaining: u.credits_remaining,
+    totalRemaining: u.free_uses_remaining + u.credits_remaining + (isSubscriber ? 999_999 : 0),
     isSubscriber,
   };
 }
 
 export async function deductUse(anonymousId: string): Promise<void> {
-  const user = await ensureUser(anonymousId);
-  if (user.id === "fallback") throw new Error("Cannot deduct: using fallback user");
+  const u = await ensureUser(anonymousId);
 
-  const u = user as Record<string, unknown>;
-
-  if (user.subscription_status === "active") {
-    if (u.daily_uses !== undefined) {
+  if (u.subscription_status === "active") {
+    if (u.daily_date !== null) {
       const today = new Date().toISOString().slice(0, 10);
-      const du = (u.daily_uses as number) || 0;
-      const dd = (u.daily_date as string) || "";
-      const newDaily = dd === today ? du + 1 : 1;
-
-      if (newDaily > DAILY_LIMIT) {
-        throw new Error(`Daily limit reached (${DAILY_LIMIT}/day)`);
-      }
-
+      const newDaily = u.daily_date === today ? (u.daily_uses ?? 0) + 1 : 1;
+      if (newDaily > DAILY_LIMIT) throw new Error(`Daily limit reached (${DAILY_LIMIT}/day)`);
       const { error } = await supabaseAdmin
         .from("users")
         .update({ daily_uses: newDaily, daily_date: today, updated_at: new Date().toISOString() })
-        .eq("id", user.id);
+        .eq("id", u.id);
       if (error) throw new Error(`Subscriber deduction failed: ${error.message}`);
     }
     return;
   }
 
-  if (user.free_uses_remaining > 0) {
+  if (u.free_uses_remaining > 0) {
     const { error } = await supabaseAdmin
       .from("users")
-      .update({
-        free_uses_remaining: user.free_uses_remaining - 1,
-        updated_at: new Date().toISOString(),
-      })
-      .eq("id", user.id)
-      .eq("free_uses_remaining", user.free_uses_remaining);
+      .update({ free_uses_remaining: u.free_uses_remaining - 1, updated_at: new Date().toISOString() })
+      .eq("id", u.id)
+      .eq("free_uses_remaining", u.free_uses_remaining);
     if (error) throw new Error(`Deduction failed: ${error.message}`);
-  } else if (user.credits_remaining > 0) {
+  } else if (u.credits_remaining > 0) {
     const { error } = await supabaseAdmin
       .from("users")
-      .update({
-        credits_remaining: user.credits_remaining - 1,
-        updated_at: new Date().toISOString(),
-      })
-      .eq("id", user.id)
-      .eq("credits_remaining", user.credits_remaining);
+      .update({ credits_remaining: u.credits_remaining - 1, updated_at: new Date().toISOString() })
+      .eq("id", u.id)
+      .eq("credits_remaining", u.credits_remaining);
     if (error) throw new Error(`Deduction failed: ${error.message}`);
   }
 }
 
 export async function addCredits(stripeCustomerId: string, amount: number): Promise<void> {
-  const { error } = await supabaseAdmin.rpc("add_credits", {
-    p_stripe_customer_id: stripeCustomerId, p_amount: amount,
-  });
+  const { error } = await supabaseAdmin.rpc("add_credits", { p_stripe_customer_id: stripeCustomerId, p_amount: amount });
   if (error) {
     const { data: user } = await supabaseAdmin.from("users").select("id, credits_remaining").eq("stripe_customer_id", stripeCustomerId).single();
-    if (user) {
-      await supabaseAdmin.from("users").update({ credits_remaining: (user.credits_remaining || 0) + amount, updated_at: new Date().toISOString() }).eq("id", user.id);
-    }
+    if (user) await supabaseAdmin.from("users").update({ credits_remaining: (user.credits_remaining || 0) + amount, updated_at: new Date().toISOString() }).eq("id", user.id);
   }
 }
 

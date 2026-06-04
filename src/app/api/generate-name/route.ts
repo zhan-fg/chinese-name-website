@@ -90,6 +90,8 @@ export async function POST(request: NextRequest) {
         deductionStatus = "failed";
         deductionError = err instanceof Error ? err.message : String(err);
       }
+    } else {
+      deductionError = "no anonymousId provided";
     }
 
     return NextResponse.json({
