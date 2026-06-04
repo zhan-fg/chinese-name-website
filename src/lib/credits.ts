@@ -23,19 +23,23 @@ export async function ensureUser(anonymousId: string, ip?: string) {
   let freeUses = FREE_USES;
 
   if (ip) {
-    // Count how many existing users already got free uses from this IP
-    const { count } = await supabaseAdmin
-      .from("users")
-      .select("id", { count: "exact", head: true })
-      .eq("ip_address", ip)
-      .gt("free_uses_remaining", 0); // only count accounts that actually got free uses
+    try {
+      // Count how many existing users already got free uses from this IP
+      const { count } = await supabaseAdmin
+        .from("users")
+        .select("id", { count: "exact", head: true })
+        .eq("ip_address", ip)
+        .gt("free_uses_remaining", 0);
 
-    if (count && count >= MAX_FREE_ACCOUNTS_PER_IP) {
-      freeUses = 0; // No more free lunches from this IP
+      if (count && count >= MAX_FREE_ACCOUNTS_PER_IP) {
+        freeUses = 0;
+      }
+    } catch {
+      // IP lookup failed — allow free uses (don't block on infra)
     }
   }
 
-  // Create new user
+  // Create new user (without ip_address to avoid PostgREST cache issues)
   const { data: created, error } = await supabaseAdmin
     .from("users")
     .insert({
@@ -43,7 +47,6 @@ export async function ensureUser(anonymousId: string, ip?: string) {
       free_uses_remaining: freeUses,
       credits_remaining: 0,
       subscription_status: "none",
-      ip_address: ip || null,
     })
     .select("id, free_uses_remaining, credits_remaining, subscription_status")
     .single();
@@ -56,6 +59,15 @@ export async function ensureUser(anonymousId: string, ip?: string) {
       credits_remaining: 0,
       subscription_status: "none",
     };
+  }
+
+  // Update IP separately (avoids PostgREST schema cache issue)
+  if (ip && created) {
+    supabaseAdmin
+      .from("users")
+      .update({ ip_address: ip })
+      .eq("id", created.id)
+      .then(() => {}, () => {}); // fire-and-forget
   }
 
   return created;
