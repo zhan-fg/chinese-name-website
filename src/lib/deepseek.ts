@@ -67,14 +67,15 @@ async function callDeepSeek(
 
 export async function generateName(
   req: GenerateNameRequest,
-  baziPrompt?: string
+  baziPrompt?: string,
+  excludeNames?: string[]
 ): Promise<NameEntry> {
   const apiKey = process.env.DEEPSEEK_API_KEY;
   const baseUrl =
     process.env.DEEPSEEK_BASE_URL || "https://api.deepseek.com/v1";
 
   if (!apiKey || apiKey === "your_deepseek_api_key_here") {
-    return { ...getFallbackName(req.sourceCategory), _fallback: true } as NameEntry;
+    return { ...getFallbackName(req.sourceCategory, excludeNames), _fallback: true } as NameEntry;
   }
 
   const prompt = `Chinese name scholar. Generate a SURNAME + 2-char GIVEN NAME.
@@ -111,7 +112,7 @@ Return ONLY this JSON:
     return validateAndReturn(result, req.sourceCategory);
   } catch (error) {
     console.error("generateName failed:", error);
-    return { ...getFallbackName(req.sourceCategory), _fallback: true } as NameEntry;
+    return { ...getFallbackName(req.sourceCategory, excludeNames), _fallback: true } as NameEntry;
   }
 }
 

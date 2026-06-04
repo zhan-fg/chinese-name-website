@@ -46,6 +46,9 @@ export default function Home() {
   const [creditRefresh, setCreditRefresh] = useState(0);
   const [captureStatus, setCaptureStatus] = useState<string | null>(null);
 
+  // Track generated fullChars for dedup
+  const [generatedNames, setGeneratedNames] = useState<string[]>([]);
+
   // Anonymous user ID — persisted in localStorage for credit tracking
   const [anonymousId, setAnonymousId] = useState("");
   useEffect(() => {
@@ -206,6 +209,7 @@ export default function Home() {
           birthMinute: birthData?.minute,
           birthLocation: birthData?.location || undefined,
           anonymousId: anonId || undefined,
+          excludeNames: generatedNames,
         }),
       });
 
@@ -216,6 +220,11 @@ export default function Home() {
       const data = await res.json();
       setResult(data);
       goToStep("result");
+
+      // Track for dedup
+      if (data.fullChars) {
+        setGeneratedNames((prev) => [...prev, data.fullChars]);
+      }
 
       // Refresh credit badge after generation
       setCreditRefresh((k) => k + 1);

@@ -20,6 +20,7 @@ export async function POST(request: NextRequest) {
       birthMinute,
       birthLocation,
       anonymousId,
+      excludeNames,
     } = body;
 
     if (!sourceCategory) {
@@ -29,23 +30,14 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const validCategories = [
-      "poetry",
-      "elements",
-      "nature",
-      "mythology",
-      "history",
-    ];
+    const validCategories = ["poetry", "elements", "nature", "mythology", "history"];
     if (!validCategories.includes(sourceCategory)) {
       return NextResponse.json(
-        {
-          error: `Invalid sourceCategory. Must be one of: ${validCategories.join(", ")}`,
-        },
+        { error: `Invalid sourceCategory. Must be one of: ${validCategories.join(", ")}` },
         { status: 400 }
       );
     }
 
-    // Calculate Bazi if birth data is provided
     let baziPrompt: string | undefined;
     if (
       sourceCategory === "elements" &&
@@ -82,7 +74,8 @@ export async function POST(request: NextRequest) {
         birthMinute: birthMinute || undefined,
         birthLocation: birthLocation?.trim() || undefined,
       },
-      baziPrompt
+      baziPrompt,
+      Array.isArray(excludeNames) ? excludeNames : undefined
     );
 
     // Deduct credit after successful generation
@@ -97,7 +90,6 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    // Include diagnostics in the response
     return NextResponse.json({
       ...result,
       _debug: {

@@ -1060,17 +1060,25 @@ export const fallbackNames: Record<string, NameEntry[]> = {
 const _lastPicked: Record<string, number> = {};
 
 /**
- * Get a fallback name, avoiding consecutive repeats.
+ * Get a fallback name, avoiding repeats.
+ * @param exclude - fullChars to never return (session dedup)
  */
-export function getFallbackName(category: string): NameEntry {
+export function getFallbackName(category: string, exclude: string[] = []): NameEntry {
   const pool = fallbackNames[category] || fallbackNames.poetry;
-  if (pool.length <= 1) return pool[0];
+  
+  // Filter out excluded names
+  const available = pool.filter((n) => !exclude.includes(n.fullChars));
+  const usePool = available.length > 0 ? available : pool;
+  
+  if (usePool.length <= 1) return usePool[0];
 
   let idx: number;
+  let attempts = 0;
   do {
-    idx = Math.floor(Math.random() * pool.length);
-  } while (idx === _lastPicked[category] && pool.length > 1);
+    idx = Math.floor(Math.random() * usePool.length);
+    attempts++;
+  } while (idx === _lastPicked[category] && attempts < 20 && usePool.length > 1);
 
   _lastPicked[category] = idx;
-  return pool[idx];
+  return usePool[idx];
 }
