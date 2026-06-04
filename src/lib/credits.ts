@@ -34,6 +34,7 @@ async function dailyColumnsReady(): Promise<boolean> {
 
 function toRow(data: Record<string, unknown> | null, hasDaily: boolean): UserRow {
   const d = (data || {}) as Record<string, unknown>;
+  const today = new Date().toISOString().slice(0, 10);
   return {
     id: (d.id as string) || "",
     anonymous_id: (d.anonymous_id as string) || "",
@@ -45,7 +46,7 @@ function toRow(data: Record<string, unknown> | null, hasDaily: boolean): UserRow
     stripe_customer_id: (d.stripe_customer_id as string) || null,
     ip_address: (d.ip_address as string) || null,
     daily_uses: hasDaily ? ((d.daily_uses as number) ?? 0) : 0,
-    daily_date: hasDaily ? ((d.daily_date as string) || null) : null,
+    daily_date: hasDaily ? ((d.daily_date as string) || today) : null,
     created_at: (d.created_at as string) || "",
     updated_at: (d.updated_at as string) || "",
   };
