@@ -34,6 +34,7 @@ export async function GET() {
         free_uses_remaining: 999,
         credits_remaining: 0,
         subscription_status: "none",
+        ip_address: "1.2.3.4",
       })
       .select("id");
 
