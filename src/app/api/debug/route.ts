@@ -57,11 +57,40 @@ export async function GET() {
       : "NOT SET",
   };
 
-  // 4. PayPal
+  // 4. PayPal — test actual auth
+  const ppClientId = process.env.PAYPAL_CLIENT_ID || "";
+  const ppSecret = process.env.PAYPAL_CLIENT_SECRET || "";
+  const ppMode = process.env.PAYPAL_MODE || "not set";
+
   checks.paypal = {
-    configured: !!process.env.PAYPAL_CLIENT_ID,
-    mode: process.env.PAYPAL_MODE || "not set",
+    configured: !!(ppClientId && ppSecret),
+    mode: ppMode,
+    clientIdPreview: ppClientId ? ppClientId.slice(0, 5) + "..." + ppClientId.slice(-4) : "NOT SET",
   };
+
+  if (ppClientId && ppSecret) {
+    try {
+      const ppApi = ppMode === "live"
+        ? "https://api-m.paypal.com"
+        : "https://api-m.sandbox.paypal.com";
+      const authRes = await fetch(`${ppApi}/v1/oauth2/token`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/x-www-form-urlencoded",
+          Authorization: "Basic " + Buffer.from(`${ppClientId}:${ppSecret}`).toString("base64"),
+        },
+        body: "grant_type=client_credentials",
+      });
+      if (authRes.ok) {
+        checks.paypal.auth = "ok";
+      } else {
+        const errText = await authRes.text();
+        checks.paypal.auth = { failed: true, status: authRes.status, body: errText.slice(0, 300) };
+      }
+    } catch (e) {
+      checks.paypal.auth = { failed: true, error: String(e) };
+    }
+  }
 
   return NextResponse.json(checks);
 }
