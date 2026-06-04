@@ -31,7 +31,7 @@ export async function GET() {
     .single();
 
   results.insert = insertErr
-    ? { error: insertErr.message, code: (insertErr as Record<string, unknown>).code }
+    ? { error: insertErr.message, code: (insertErr as unknown as Record<string, unknown>).code }
     : { ok: true, id: inserted?.id };
 
   // 3. Clean up test row
