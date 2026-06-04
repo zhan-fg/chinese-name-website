@@ -2,15 +2,11 @@ import { supabaseAdmin } from "./supabase";
 
 const FREE_USES = 3;
 const MAX_FREE_ACCOUNTS_PER_IP = 2;
-const SUBSCRIBER_DAILY_LIMIT = 50;
 
-/**
- * Ensure a user record exists.
- */
 export async function ensureUser(anonymousId: string, ip?: string) {
   const { data: existing } = await supabaseAdmin
     .from("users")
-    .select("id, free_uses_remaining, credits_remaining, subscription_status, daily_uses, daily_date")
+    .select("id, free_uses_remaining, credits_remaining, subscription_status")
     .eq("anonymous_id", anonymousId)
     .single();
 
@@ -18,7 +14,6 @@ export async function ensureUser(anonymousId: string, ip?: string) {
     return existing;
   }
 
-  // Determine free uses for new user
   let freeUses = FREE_USES;
 
   if (ip) {
@@ -44,10 +39,8 @@ export async function ensureUser(anonymousId: string, ip?: string) {
       free_uses_remaining: freeUses,
       credits_remaining: 0,
       subscription_status: "none",
-      daily_uses: 0,
-      daily_date: new Date().toISOString().slice(0, 10),
     })
-    .select("id, free_uses_remaining, credits_remaining, subscription_status, daily_uses, daily_date")
+    .select("id, free_uses_remaining, credits_remaining, subscription_status")
     .single();
 
   if (error) {
@@ -57,8 +50,6 @@ export async function ensureUser(anonymousId: string, ip?: string) {
       free_uses_remaining: freeUses,
       credits_remaining: 0,
       subscription_status: "none",
-      daily_uses: 0,
-      daily_date: new Date().toISOString().slice(0, 10),
     };
   }
 
@@ -73,52 +64,52 @@ export async function ensureUser(anonymousId: string, ip?: string) {
   return created;
 }
 
-/**
- * Get available uses (free + paid) for a user.
- */
 export async function getAvailableUses(anonymousId: string, ip?: string): Promise<{
   freeRemaining: number;
   creditsRemaining: number;
   totalRemaining: number;
   isSubscriber: boolean;
-  dailyRemaining?: number;
 }> {
   const user = await ensureUser(anonymousId, ip);
   const isSubscriber = user.subscription_status === "active";
 
-  let subscriberDailyLeft: number | undefined;
-  if (isSubscriber) {
-    const today = new Date().toISOString().slice(0, 10);
-    const dailyUses = (user as Record<string, unknown>).daily_uses as number || 0;
-    const dailyDate = (user as Record<string, unknown>).daily_date as string || "";
-    
-    if (dailyDate !== today) {
-      subscriberDailyLeft = SUBSCRIBER_DAILY_LIMIT;
-    } else {
-      subscriberDailyLeft = Math.max(0, SUBSCRIBER_DAILY_LIMIT - dailyUses);
-    }
-    
-    return {
-      freeRemaining: user.free_uses_remaining,
-      creditsRemaining: user.credits_remaining,
-      totalRemaining: subscriberDailyLeft > 0 ? 999_999 : 0,
-      isSubscriber,
-      dailyRemaining: subscriberDailyLeft,
-    };
-  }
-
   return {
     freeRemaining: user.free_uses_remaining,
     creditsRemaining: user.credits_remaining,
-    totalRemaining: user.free_uses_remaining + user.credits_remaining,
+    totalRemaining:
+      user.free_uses_remaining + user.credits_remaining + (isSubscriber ? 999_999 : 0),
     isSubscriber,
   };
 }
 
-/**
- * Deduct one use. Subtracts from free uses first, then paid credits.
- * Subscribers get 50/day limit.
- */
+export async function checkCanGenerate(anonymousId: string): Promise<{
+  canGenerate: boolean;
+  reason?: "no_credits" | "ok";
+  usingFreeUse: boolean;
+  usingCredit: boolean;
+  usingSubscription: boolean;
+}> {
+  const { freeRemaining, creditsRemaining, isSubscriber } =
+    await getAvailableUses(anonymousId);
+
+  if (isSubscriber) {
+    return { canGenerate: true, usingFreeUse: false, usingCredit: false, usingSubscription: true };
+  }
+  if (freeRemaining > 0) {
+    return { canGenerate: true, usingFreeUse: true, usingCredit: false, usingSubscription: false };
+  }
+  if (creditsRemaining > 0) {
+    return { canGenerate: true, usingFreeUse: false, usingCredit: true, usingSubscription: false };
+  }
+  return {
+    canGenerate: false,
+    reason: "no_credits",
+    usingFreeUse: false,
+    usingCredit: false,
+    usingSubscription: false,
+  };
+}
+
 export async function deductUse(anonymousId: string): Promise<void> {
   const user = await ensureUser(anonymousId);
 
@@ -127,28 +118,7 @@ export async function deductUse(anonymousId: string): Promise<void> {
   }
 
   if (user.subscription_status === "active") {
-    const today = new Date().toISOString().slice(0, 10);
-    const dailyUses = (user as Record<string, unknown>).daily_uses as number || 0;
-    const dailyDate = (user as Record<string, unknown>).daily_date as string || "";
-    
-    const newDailyUses = dailyDate !== today ? 1 : dailyUses + 1;
-    
-    if (newDailyUses > SUBSCRIBER_DAILY_LIMIT) {
-      throw new Error(`Daily limit reached (${SUBSCRIBER_DAILY_LIMIT}/day)`);
-    }
-
-    const { error } = await supabaseAdmin
-      .from("users")
-      .update({
-        daily_uses: newDailyUses,
-        daily_date: today,
-        updated_at: new Date().toISOString(),
-      })
-      .eq("id", user.id);
-
-    if (error) {
-      throw new Error(`Subscriber deduction failed: ${error.message}`);
-    }
+    // Subscribers get unlimited — no deduction needed
     return;
   }
 
@@ -181,9 +151,6 @@ export async function deductUse(anonymousId: string): Promise<void> {
   }
 }
 
-/**
- * Add credits to a user by stripe_customer_id (legacy).
- */
 export async function addCredits(stripeCustomerId: string, amount: number): Promise<void> {
   const { error } = await supabaseAdmin.rpc("add_credits", {
     p_stripe_customer_id: stripeCustomerId,
@@ -209,9 +176,6 @@ export async function addCredits(stripeCustomerId: string, amount: number): Prom
   }
 }
 
-/**
- * Add credits to a user by anonymous_id.
- */
 export async function addCreditsByAnonymousId(
   anonymousId: string,
   amount: number
@@ -222,10 +186,7 @@ export async function addCreditsByAnonymousId(
     .eq("anonymous_id", anonymousId)
     .single();
 
-  if (!user) {
-    console.error("addCreditsByAnonymousId: user not found:", anonymousId);
-    return;
-  }
+  if (!user) return;
 
   await supabaseAdmin
     .from("users")
@@ -236,9 +197,6 @@ export async function addCreditsByAnonymousId(
     .eq("id", user.id);
 }
 
-/**
- * Set subscription status.
- */
 export async function setSubscriptionStatus(
   stripeCustomerId: string,
   status: "active" | "cancelled" | "past_due",
@@ -254,9 +212,6 @@ export async function setSubscriptionStatus(
     .eq("stripe_customer_id", stripeCustomerId);
 }
 
-/**
- * Link a Stripe customer to the user.
- */
 export async function linkStripeCustomer(
   anonymousId: string,
   stripeCustomerId: string,
