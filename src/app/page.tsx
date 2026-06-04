@@ -217,6 +217,9 @@ export default function Home() {
       setResult(data);
       goToStep("result");
 
+      // Refresh credit badge after generation
+      setCreditRefresh((k) => k + 1);
+
       // Phase 2: Load story asynchronously
       if (data._storyLoading !== false) {
         fetch("/api/generate-story", {
