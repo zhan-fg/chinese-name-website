@@ -80,6 +80,7 @@ export async function POST(request: NextRequest) {
 
     // Deduct credit after successful generation
     let deductionStatus = "skipped";
+    let deductionError = "";
     if (anonymousId) {
       try {
         await deductUse(anonymousId);
@@ -87,6 +88,7 @@ export async function POST(request: NextRequest) {
       } catch (err) {
         console.error("Failed to deduct credit:", err);
         deductionStatus = "failed";
+        deductionError = err instanceof Error ? err.message : String(err);
       }
     }
 
@@ -94,6 +96,7 @@ export async function POST(request: NextRequest) {
       ...result,
       _debug: {
         deduction: deductionStatus,
+        deductionError: deductionError || undefined,
         anonymousId: anonymousId || "missing",
         aiMode: (result as unknown as Record<string, unknown>)._fallback ? "fallback" : "ai",
       },
