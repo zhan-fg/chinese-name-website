@@ -77,7 +77,7 @@ export async function ensureUser(anonymousId: string, ip?: string) {
 
   if (ip && created) {
     try {
-      await supabaseAdmin.from("users").update({ ip_address: ip }).eq("id", (created as Record<string, unknown>).id);
+      await supabaseAdmin.from("users").update({ ip_address: ip }).eq("id", (created as unknown as Record<string, unknown>).id);
     } catch {}
   }
 
