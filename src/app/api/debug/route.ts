@@ -66,7 +66,7 @@ export async function GET() {
     configured: !!(ppClientId && ppSecret),
     mode: ppMode,
     clientIdPreview: ppClientId ? ppClientId.slice(0, 5) + "..." + ppClientId.slice(-4) : "NOT SET",
-  };
+  } as Record<string, unknown>;
 
   if (ppClientId && ppSecret) {
     try {
