@@ -7,8 +7,45 @@ export const metadata: Metadata = {
 };
 
 export default function HowItWorksPage() {
+  const howToJsonLd = {
+    "@context": "https://schema.org",
+    "@type": "HowTo",
+    name: "How to Get a Chinese Name on Shan Shui",
+    description: "Generate a personalized Chinese name from classical poetry, Five Elements philosophy, mythology, and history in four simple steps.",
+    step: [
+      {
+        "@type": "HowToStep",
+        position: 1,
+        name: "Choose Your Source",
+        text: "Pick where your name should come from: Classical Poetry, Five Elements Bazi, Nature, Mythology, or History. Each draws from different classical Chinese texts.",
+      },
+      {
+        "@type": "HowToStep",
+        position: 2,
+        name: "Tell Us About Yourself",
+        text: "Share your English name and a word that describes you. For Five Elements naming, enter your birth date, time, and location for Bazi calculation.",
+      },
+      {
+        "@type": "HowToStep",
+        position: 3,
+        name: "Choose Your Surname",
+        text: "Browse 55 traditional Chinese surnames from the Hundred Family Surnames (百家姓) or let AI recommend the best match.",
+      },
+      {
+        "@type": "HowToStep",
+        position: 4,
+        name: "Receive Your Name",
+        text: "Get your Chinese name with characters, pinyin, pronunciation guide, classical source citation, cultural explanation, and share card.",
+      },
+    ],
+  };
+
   return (
     <main className="min-h-screen bg-[#F8FAFB]">
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(howToJsonLd) }}
+      />
       <div className="max-w-2xl mx-auto px-4 py-12">
         <h1 className="text-2xl font-light text-text-primary mb-2">
           How Shan Shui Works

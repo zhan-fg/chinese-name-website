@@ -69,21 +69,12 @@ export const metadata: Metadata = {
     title: "Shan Shui — AI Chinese Name Generator | Poetry, Bazi & History",
     description:
       "Get a personalized Chinese name generated from 3,000 years of poetry, Five Elements destiny analysis, mythology, and history. With pronunciation guide, cultural story, and share card.",
-    images: [
-      {
-        url: `${SITE_URL}/og-image.png`,
-        width: 1200,
-        height: 630,
-        alt: "Shan Shui — Discover Your Chinese Name",
-      },
-    ],
   },
   twitter: {
     card: "summary_large_image",
     title: "Shan Shui — AI Chinese Name Generator",
     description:
       "Get a personalized Chinese name from poetry, Five Elements Bazi, mythology & history. With pronunciation guide and cultural story.",
-    images: [`${SITE_URL}/og-image.png`],
   },
   robots: {
     index: true,
