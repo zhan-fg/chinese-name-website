@@ -82,13 +82,13 @@ export async function GET() {
         body: "grant_type=client_credentials",
       });
       if (authRes.ok) {
-        checks.paypal.auth = "ok";
+        (checks.paypal as Record<string, unknown>).auth = "ok";
       } else {
         const errText = await authRes.text();
-        checks.paypal.auth = { failed: true, status: authRes.status, body: errText.slice(0, 300) };
+        (checks.paypal as Record<string, unknown>).auth = { failed: true, status: authRes.status, body: errText.slice(0, 300) };
       }
     } catch (e) {
-      checks.paypal.auth = { failed: true, error: String(e) };
+      (checks.paypal as Record<string, unknown>).auth = { failed: true, error: String(e) };
     }
   }
 
