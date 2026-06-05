@@ -64,7 +64,7 @@ export default function PricingPage() {
               BEST VALUE
             </div>
             <p className="text-xs font-medium text-deep-blue uppercase tracking-wider mb-1">
-              Unlimited
+              50/Day
             </p>
             <p className="text-2xl font-light text-text-primary mb-1">$4.99</p>
             <p className="text-xs text-text-secondary mb-4">30 days</p>

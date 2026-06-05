@@ -31,8 +31,8 @@ export const PRICING_PLANS = {
   },
   subscription: {
     id: "subscription",
-    name: "Unlimited Month",
-    description: "30 days unlimited — generate, save, share",
+    name: "50 Names/Day",
+    description: "30 days, 50 names per day — save, share, unlimited creativity",
     amount: 499, // $4.99
     credits: -1, // unlimited (handled by subscription_status in DB)
     type: "one_time" as const, // simplified: one-time purchase for 30 days
