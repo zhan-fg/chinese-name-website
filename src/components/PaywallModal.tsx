@@ -97,7 +97,7 @@ export default function PaywallModal({
             {/* Report CTA */}
             <div className="mb-4">
               <a
-                href={GUMROAD_PRODUCTS.report.url}
+                href={`${GUMROAD_PRODUCTS.report.url}?url=${encodeURIComponent("https://newchinesename.com/thank-you")}`}
                 target="_blank"
                 rel="noopener noreferrer"
                 className="block w-full p-3.5 rounded-xl border-2 border-deep-blue bg-[#EEF4F8] text-left transition-all hover:bg-deep-blue/5"
@@ -126,7 +126,7 @@ export default function PaywallModal({
             {/* Premium */}
             <div className="mb-4">
               <a
-                href={GUMROAD_PRODUCTS.credit_15.url}
+                href={`${GUMROAD_PRODUCTS.credit_15.url}?url=${encodeURIComponent("https://newchinesename.com/thank-you")}`}
                 target="_blank"
                 rel="noopener noreferrer"
                 className="block w-full p-3.5 rounded-xl border-2 border-card-border bg-surface hover:border-deep-blue/30 text-left transition-all"

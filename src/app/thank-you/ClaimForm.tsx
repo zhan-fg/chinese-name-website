@@ -10,6 +10,7 @@ export function ClaimForm() {
     message: string;
     action?: "view-report" | "generate";
   } | null>(null);
+  const [redirectCountdown, setRedirectCountdown] = useState(0);
 
   // Read product info from URL params and localStorage
   const [nameId, setNameId] = useState("");
@@ -81,6 +82,19 @@ export function ClaimForm() {
             : `${data.credits || ""} credits added!`,
           action: data.isUnlock ? "view-report" : "generate",
         });
+
+        // Auto-redirect to main page after 3 seconds
+        setRedirectCountdown(3);
+        const timer = setInterval(() => {
+          setRedirectCountdown((prev) => {
+            if (prev <= 1) {
+              clearInterval(timer);
+              window.location.href = "/";
+              return 0;
+            }
+            return prev - 1;
+          });
+        }, 1000);
       } else {
         setResult({
           type: "error",
@@ -135,15 +149,11 @@ export function ClaimForm() {
           </p>
           {result.type === "success" && result.action && (
             <div className="mt-3">
-              {result.action === "view-report" ? (
-                <p className="text-xs text-green-600 mb-2">
-                  Go back to the main page and refresh to see your full report.
-                </p>
-              ) : (
-                <p className="text-xs text-green-600 mb-2">
-                  Go back to the main page and refresh to use your credits.
-                </p>
-              )}
+              <p className="text-xs text-green-600 mb-2">
+                {redirectCountdown > 0
+                  ? `Redirecting to your ${result.action === "view-report" ? "report" : "names"} in ${redirectCountdown}...`
+                  : "Go back to the main page to see your content."}
+              </p>
               <a
                 href="/"
                 className="inline-block px-4 py-2 rounded-lg bg-deep-blue text-white text-xs font-medium hover:bg-mid-blue transition-colors"

@@ -40,7 +40,10 @@ function BlurOverlay({
       } catch {}
     }
     if (reportUrl) {
-      window.open(reportUrl, "_blank", "noopener,noreferrer");
+      // Add Gumroad redirect param so user lands on /thank-you after payment
+      const separator = reportUrl.includes("?") ? "&" : "?";
+      const url = `${reportUrl}${separator}url=${encodeURIComponent("https://newchinesename.com/thank-you")}`;
+      window.open(url, "_blank", "noopener,noreferrer");
     }
   };
   return (

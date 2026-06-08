@@ -1,9 +1,10 @@
 import type { Metadata } from "next";
 import { ClaimForm } from "./ClaimForm";
+import { PendingName } from "./PendingName";
 
 export const metadata: Metadata = {
-  title: "Claim Your Credits — Shan Shui",
-  description: "Enter your email to claim your Chinese name generation credits.",
+  title: "Claim Your Purchase — Shan Shui",
+  description: "Enter your email to claim your Chinese name report or credits.",
 };
 
 export default function ThankYouPage() {
@@ -13,11 +14,12 @@ export default function ThankYouPage() {
         <div className="card p-8 text-center">
           <div className="text-4xl mb-4">🎉</div>
           <h1 className="text-xl font-light text-text-primary mb-2">
-            Purchase Complete!
+            Almost there!
           </h1>
-          <p className="text-sm text-text-secondary mb-6">
-            Enter the email you used at Gumroad to claim your credits.
+          <p className="text-sm text-text-secondary mb-2">
+            Enter the email you used on Gumroad to unlock your purchase.
           </p>
+          <PendingName />
           <ClaimForm />
           <p className="text-xs text-mist mt-4">
             Already have credits?{" "}

@@ -56,7 +56,7 @@ export default function PricingPage() {
               <li>&#x2022; Share card</li>
             </ul>
             <a
-              href={GUMROAD_PRODUCTS.report.url || GUMROAD_PRODUCTS.credit_5.url}
+              href={`${GUMROAD_PRODUCTS.report.url}?url=${encodeURIComponent("https://newchinesename.com/thank-you")}`}
               target="_blank"
               rel="noopener noreferrer"
               className="block w-full py-2.5 rounded-lg bg-deep-blue text-white text-sm font-medium hover:bg-mid-blue transition-colors text-center"
@@ -80,7 +80,7 @@ export default function PricingPage() {
               <li>&#x2022; One-time purchase</li>
             </ul>
             <a
-              href={GUMROAD_PRODUCTS.credit_15.url}
+              href={`${GUMROAD_PRODUCTS.credit_15.url}?url=${encodeURIComponent("https://newchinesename.com/thank-you")}`}
               target="_blank"
               rel="noopener noreferrer"
               className="block w-full py-2.5 rounded-lg bg-deep-blue text-white text-sm font-medium hover:bg-mid-blue transition-colors text-center"
