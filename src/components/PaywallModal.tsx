@@ -2,73 +2,24 @@
 
 import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { PRICING_PLANS, type PricingPlanId } from "@/lib/paypal";
 import { GUMROAD_PRODUCTS } from "@/lib/gumroad";
 
 interface Props {
   visible: boolean;
-  anonymousId: string;
   onClose: () => void;
   onCreditRefresh?: () => void;
 }
 
 export default function PaywallModal({
   visible,
-  anonymousId,
   onClose,
   onCreditRefresh,
 }: Props) {
-  const [loading, setLoading] = useState<PricingPlanId | null>(null);
-  const [error, setError] = useState<string | null>(null);
-
   // Email recovery
   const [showRecovery, setShowRecovery] = useState(false);
   const [recoveryEmail, setRecoveryEmail] = useState("");
   const [recoveryLoading, setRecoveryLoading] = useState(false);
   const [recoveryMsg, setRecoveryMsg] = useState<string | null>(null);
-
-  const handlePurchase = async (planId: PricingPlanId) => {
-    setLoading(planId);
-    setError(null);
-
-    const gumroadUrl = GUMROAD_PRODUCTS[planId]?.url;
-    if (gumroadUrl) {
-      window.location.href = gumroadUrl;
-      return;
-    }
-
-    // Fallback: use PayPal API if no Gumroad URL configured
-    const anonId = anonymousId || (typeof window !== "undefined" ? localStorage.getItem("shan-anon-id") : null);
-    if (!anonId) {
-      setError("Session not ready. Please refresh the page and try again.");
-      setLoading(null);
-      return;
-    }
-
-    try {
-      const res = await fetch("/api/create-checkout", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ planId, anonymousId: anonId }),
-      });
-
-      const data = await res.json();
-
-      if (!res.ok) {
-        throw new Error(data.error || `Server error: ${res.status}`);
-      }
-
-      if (data.url) {
-        window.location.href = data.url;
-      } else {
-        throw new Error("No checkout URL returned");
-      }
-    } catch (err) {
-      const msg = err instanceof Error ? err.message : "Unknown error";
-      setError(`Payment setup failed: ${msg}`);
-      setLoading(null);
-    }
-  };
 
   const handleRecover = async () => {
     if (!recoveryEmail.trim()) return;
@@ -132,57 +83,70 @@ export default function PaywallModal({
 
             <div className="text-center mb-5">
               <h2 className="text-lg font-light text-text-primary mb-1">
-                Your free names are used up
+                Love this name?
               </h2>
               <p className="text-xs text-text-secondary leading-relaxed">
-                You&apos;ve generated your 3 free names. Choose a plan to
-                continue discovering your perfect Chinese name.
+                You found your Chinese name. Unlock its full story — the
+                classical poem, character breakdown, and cultural meaning.
               </p>
             </div>
 
-            {/* Error */}
-            {error && (
-              <div className="mb-4 p-2.5 rounded-lg bg-red-50 border border-red-200 text-red-700 text-xs text-center">
-                {error}
-              </div>
-            )}
-
-            {/* Plans */}
-            <div className="space-y-2.5 mb-4">
-              {Object.entries(PRICING_PLANS).map(([key, plan]) => (
-                <button
-                  key={key}
-                  onClick={() => handlePurchase(key as PricingPlanId)}
-                  disabled={loading !== null}
-                  className={`w-full flex items-center justify-between p-3.5 rounded-xl border-2 text-left transition-all ${
-                    "featured" in plan && plan.featured
-                      ? "border-deep-blue bg-[#EEF4F8]"
-                      : "border-card-border bg-surface hover:border-deep-blue/30"
-                  } disabled:opacity-60`}
-                >
+            {/* Report CTA */}
+            <div className="mb-4">
+              <a
+                href={GUMROAD_PRODUCTS.report.url}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="block w-full p-3.5 rounded-xl border-2 border-deep-blue bg-[#EEF4F8] text-left transition-all hover:bg-deep-blue/5"
+              >
+                <div className="flex items-center justify-between">
                   <div>
                     <p className="text-sm font-medium text-text-primary">
-                      {plan.name}
-                      {"featured" in plan && plan.featured && (
-                        <span className="ml-1.5 text-[10px] text-deep-blue font-normal">
-                          BEST VALUE
-                        </span>
-                      )}
+                      Chinese Identity Report
+                      <span className="ml-1.5 text-[10px] text-deep-blue font-normal">
+                        PER NAME
+                      </span>
                     </p>
                     <p className="text-[11px] text-text-secondary mt-0.5">
-                      {plan.description}
+                      Full story, source poem, character breakdown, share card
                     </p>
                   </div>
                   <div className="text-right shrink-0">
                     <p className="text-sm font-medium text-text-primary">
-                      ${(plan.amount / 100).toFixed(2)}
+                      $4.99
                     </p>
-                    {plan.id === "subscription" && (
-                      <p className="text-[10px] text-text-secondary">30 days</p>
-                    )}
                   </div>
-                </button>
-              ))}
+                </div>
+              </a>
+            </div>
+
+            {/* Premium */}
+            <div className="mb-4">
+              <a
+                href={GUMROAD_PRODUCTS.credit_15.url}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="block w-full p-3.5 rounded-xl border-2 border-card-border bg-surface hover:border-deep-blue/30 text-left transition-all"
+              >
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm font-medium text-text-primary">
+                      Premium — 20 Reports
+                      <span className="ml-1.5 text-[10px] text-deep-blue font-normal">
+                        BEST VALUE
+                      </span>
+                    </p>
+                    <p className="text-[11px] text-text-secondary mt-0.5">
+                      5 styles: Poet, Scholar, Warrior, Modern, Ancient
+                    </p>
+                  </div>
+                  <div className="text-right shrink-0">
+                    <p className="text-sm font-medium text-text-primary">
+                      $9.99
+                    </p>
+                  </div>
+                </div>
+              </a>
             </div>
 
             {/* Trust */}

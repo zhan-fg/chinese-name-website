@@ -11,10 +11,6 @@ export const GUMROAD_PRODUCTS = {
     url: "https://zhanqiuhui.gumroad.com/l/uawodz",
     name: "15 Name Credits",
   },
-  subscription: {
-    url: "https://zhanqiuhui.gumroad.com/l/uawodz",
-    name: "50/Day — 30 Days",
-  },
   report: {
     url: "https://zhanqiuhui.gumroad.com/l/kqzwc",
     name: "Chinese Identity Report — $4.99",

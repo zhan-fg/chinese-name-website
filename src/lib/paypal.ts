@@ -29,14 +29,6 @@ export const PRICING_PLANS = {
     type: "one_time" as const,
     featured: true,
   },
-  subscription: {
-    id: "subscription",
-    name: "50 Names/Day",
-    description: "30 days, 50 names per day — save, share, unlimited creativity",
-    amount: 499, // $4.99
-    credits: -1, // unlimited (handled by subscription_status in DB)
-    type: "one_time" as const, // simplified: one-time purchase for 30 days
-  },
 } as const;
 
 export type PricingPlanId = keyof typeof PRICING_PLANS;
