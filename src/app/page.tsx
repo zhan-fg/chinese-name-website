@@ -12,6 +12,7 @@ import StepIndicator from "@/components/StepIndicator";
 import BaziDisclaimer from "@/components/BaziDisclaimer";
 import CreditBadge from "@/components/CreditBadge";
 import PaywallModal from "@/components/PaywallModal";
+import InlineClaim from "@/components/InlineClaim";
 import { GUMROAD_PRODUCTS } from "@/lib/gumroad";
 
 type Step = "category" | "userinfo" | "surname" | "loading" | "result";
@@ -53,8 +54,8 @@ export default function Home() {
   // Track unlocked name IDs (paid reports)
   const [unlockedNames, setUnlockedNames] = useState<Set<string>>(new Set());
 
-  // Pending unlock reminder: show toast when user returns from Gumroad without claiming
-  const [showClaimReminder, setShowClaimReminder] = useState(false);
+  // Inline claim: nameId to unlock (shown when user returns from Gumroad)
+  const [inlineClaimNameId, setInlineClaimNameId] = useState("");
 
   // Load unlocked names from localStorage on mount
   useEffect(() => {
@@ -85,8 +86,8 @@ export default function Home() {
       try {
         // Check if there's a pending unlock (user bought on Gumroad but hasn't claimed yet)
         const pending = localStorage.getItem("shan-pending-unlock");
-        if (pending) {
-          setShowClaimReminder(true);
+        if (pending && !unlockedNames.has(pending)) {
+          setInlineClaimNameId(pending);
         }
 
         // Re-read unlocked names (might have been updated by /thank-you tab)
@@ -394,22 +395,21 @@ export default function Home() {
         </div>
       )}
 
-      {/* Claim reminder — shown when user returns from Gumroad without claiming */}
-      {showClaimReminder && (
-        <div className="px-4 mb-4">
-          <div className="max-w-sm mx-auto p-3 rounded-lg bg-amber-50 border border-amber-200 text-center">
-            <p className="text-xs text-amber-800 mb-2">
-              You purchased a report on Gumroad. Enter your email to unlock it.
-            </p>
-            <a
-              href="/thank-you"
-              className="inline-block px-4 py-1.5 rounded-lg bg-deep-blue text-white text-xs font-medium hover:bg-mid-blue transition-colors"
-              onClick={() => setShowClaimReminder(false)}
-            >
-              Claim Your Report →
-            </a>
-          </div>
-        </div>
+      {/* Inline claim — shown when user returns from Gumroad with pending unlock */}
+      {inlineClaimNameId && (
+        <InlineClaim
+          nameId={inlineClaimNameId}
+          onSuccess={() => {
+            setInlineClaimNameId("");
+            // Force re-render to pick up unlocked name
+            setUnlockedNames((prev) => {
+              const next = new Set(prev);
+              next.add(inlineClaimNameId);
+              return new Set(next);
+            });
+          }}
+          onClose={() => setInlineClaimNameId("")}
+        />
       )}
 
       {/* Main content */}
