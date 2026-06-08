@@ -29,6 +29,12 @@ export default function InlineClaim({ nameId, onSuccess, onClose }: Props) {
     setLoading(true);
     setError("");
 
+    // Read the claim token from localStorage (set by handleInitClaim before Gumroad)
+    let token = "";
+    try {
+      token = localStorage.getItem("shan-claim-token") || "";
+    } catch {}
+
     try {
       const res = await fetch("/api/claim-gumroad", {
         method: "POST",
@@ -37,6 +43,7 @@ export default function InlineClaim({ nameId, onSuccess, onClose }: Props) {
           email: email.trim(),
           productType: "report",
           nameId,
+          token,
         }),
       });
 
@@ -52,6 +59,7 @@ export default function InlineClaim({ nameId, onSuccess, onClose }: Props) {
             localStorage.setItem("shan-unlocked", JSON.stringify(unlocked));
           }
           localStorage.removeItem("shan-pending-unlock");
+          localStorage.removeItem("shan-claim-token");
         } catch {}
 
         onSuccess();

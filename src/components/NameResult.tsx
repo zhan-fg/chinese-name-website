@@ -246,6 +246,35 @@ export default function NameResult({
   const showPreview = !isUnlocked;
   const nameId = `${name.fullChars}-${name.sourceCategory}`;
 
+  // Initiate claim: get a one-time token, then open Gumroad
+  const handleInitClaim = async () => {
+    if (!nameId || !reportUrl) return;
+
+    // Store the nameId for the claim flow
+    try { localStorage.setItem("shan-pending-unlock", nameId); } catch {}
+
+    // Get a one-time claim token from the server
+    try {
+      const res = await fetch("/api/init-claim", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ nameId }),
+      });
+      const data = await res.json();
+      if (data.token) {
+        localStorage.setItem("shan-claim-token", data.token);
+      }
+    } catch {
+      // If init-claim fails, still let user proceed (token will be missing, claim will fail gracefully)
+      console.error("Failed to get claim token");
+    }
+
+    // Open Gumroad
+    const separator = reportUrl.includes("?") ? "&" : "?";
+    const url = `${reportUrl}${separator}url=${encodeURIComponent("https://newchinesename.com/thank-you")}`;
+    window.open(url, "_blank", "noopener,noreferrer");
+  };
+
   return (
     <motion.div
       initial={{ opacity: 0, y: 20 }}
@@ -331,16 +360,7 @@ export default function NameResult({
               Unlock the full story, meaning, and character breakdown
             </p>
             <button
-              onClick={() => {
-                if (nameId) {
-                  try { localStorage.setItem("shan-pending-unlock", nameId); } catch {}
-                }
-                if (reportUrl) {
-                  const separator = reportUrl.includes("?") ? "&" : "?";
-                  const url = `${reportUrl}${separator}url=${encodeURIComponent("https://newchinesename.com/thank-you")}`;
-                  window.open(url, "_blank", "noopener,noreferrer");
-                }
-              }}
+              onClick={handleInitClaim}
               className="px-6 py-2.5 rounded-lg bg-deep-blue text-white text-sm font-medium hover:bg-mid-blue transition-colors"
             >
               Unlock Full Report — $4.99

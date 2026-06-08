@@ -45,6 +45,12 @@ export function ClaimForm() {
       if (nameId) body.nameId = nameId;
       if (productType) body.productType = productType;
 
+      // Read claim token from localStorage (set by handleInitClaim before Gumroad)
+      try {
+        const t = localStorage.getItem("shan-claim-token");
+        if (t) body.token = t;
+      } catch {}
+
       const res = await fetch("/api/claim-gumroad", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -58,6 +64,7 @@ export function ClaimForm() {
         if (nameId && productType === "report") {
           try {
             localStorage.removeItem("shan-pending-unlock");
+            localStorage.removeItem("shan-claim-token");
           } catch {}
         }
 

@@ -3,15 +3,14 @@ import { supabaseAdmin } from "@/lib/supabase";
 
 /**
  * POST /api/claim-gumroad
- * Called from /thank-you page after Gumroad purchase.
- * Links credits/subscription to the user's email.
- * Optionally unlocks a specific name for Report purchases.
+ * Called after Gumroad purchase to unlock content.
+ * Requires a valid claim token from /api/init-claim.
  *
- * Body: { email: string, productType?: string, nameId?: string }
+ * Body: { email: string, token: string, nameId?: string, productType?: string }
  */
 export async function POST(request: NextRequest) {
   try {
-    const { email, productType, nameId } = await request.json();
+    const { email, token, productType, nameId } = await request.json();
 
     if (!email) {
       return NextResponse.json(
@@ -22,8 +21,57 @@ export async function POST(request: NextRequest) {
 
     const normalizedEmail = email.toLowerCase().trim();
 
-    // Handle Report purchase (single name unlock)
+    // Handle Report purchase (single name unlock) — requires token
     if (productType === "report" && nameId) {
+      if (!token) {
+        return NextResponse.json(
+          { error: "Claim token is required" },
+          { status: 400 }
+        );
+      }
+
+      // Verify the token
+      const { data: tokenRecord, error: tokenError } = await supabaseAdmin
+        .from("claim_tokens")
+        .select("id, name_id, status, expires_at, claimed_at")
+        .eq("token", token)
+        .eq("name_id", nameId)
+        .eq("status", "pending")
+        .single();
+
+      if (tokenError || !tokenRecord) {
+        return NextResponse.json(
+          { error: "Invalid or expired claim token. Please go back and try again." },
+          { status: 400 }
+        );
+      }
+
+      // Check expiry
+      if (new Date(tokenRecord.expires_at) < new Date()) {
+        await supabaseAdmin
+          .from("claim_tokens")
+          .update({ status: "expired" })
+          .eq("id", tokenRecord.id);
+        return NextResponse.json(
+          { error: "Claim token has expired. Please go back and try again." },
+          { status: 400 }
+        );
+      }
+
+      // Mark token as claimed
+      const { error: updateError } = await supabaseAdmin
+        .from("claim_tokens")
+        .update({
+          status: "claimed",
+          claimed_at: new Date().toISOString(),
+          email: normalizedEmail,
+        })
+        .eq("id", tokenRecord.id);
+
+      if (updateError) {
+        console.error("Failed to mark token as claimed:", updateError);
+      }
+
       // Check if user exists
       const { data: existing } = await supabaseAdmin
         .from("users")
@@ -75,7 +123,8 @@ export async function POST(request: NextRequest) {
       });
     }
 
-    // Handle subscription
+    // Handle credits/subscription — also require token for report purchases
+    // For credits: allow without token (purchased from pricing page)
     const url = new URL(request.url);
     const price = url.searchParams.get("price");
 
