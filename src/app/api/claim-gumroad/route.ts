@@ -59,7 +59,7 @@ export async function POST(request: NextRequest) {
       }
 
       // Mark token as claimed
-      const { error: updateError } = await supabaseAdmin
+      const { error: updateTokenError } = await supabaseAdmin
         .from("claim_tokens")
         .update({
           status: "claimed",
@@ -68,11 +68,41 @@ export async function POST(request: NextRequest) {
         })
         .eq("id", tokenRecord.id);
 
-      if (updateError) {
-        console.error("Failed to mark token as claimed:", updateError);
+      if (updateTokenError) {
+        console.error("Failed to mark token as claimed:", updateTokenError);
       }
 
-      // Check if user exists
+      // VERIFY PAYMENT: check if user has a verified purchase (from Gumroad webhook)
+      const { data: userRecord } = await supabaseAdmin
+        .from("users")
+        .select("id, report_unlocks_remaining")
+        .eq("email", normalizedEmail)
+        .order("created_at", { ascending: false })
+        .limit(1)
+        .single();
+
+      const reportUnlocks = userRecord?.report_unlocks_remaining || 0;
+
+      if (reportUnlocks <= 0) {
+        return NextResponse.json(
+          {
+            error:
+              "No verified purchase found for this email. Make sure you used the same email on Gumroad. Purchases may take a moment to process.",
+          },
+          { status: 400 }
+        );
+      }
+
+      // Decrement remaining unlocks
+      await supabaseAdmin
+        .from("users")
+        .update({
+          report_unlocks_remaining: reportUnlocks - 1,
+          updated_at: new Date().toISOString(),
+        })
+        .eq("id", userRecord.id);
+
+      // Check if user exists (for unlocked_names)
       const { data: existing } = await supabaseAdmin
         .from("users")
         .select("id, unlocked_names")
