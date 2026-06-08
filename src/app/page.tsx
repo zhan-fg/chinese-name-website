@@ -54,6 +54,10 @@ export default function Home() {
   // Track unlocked name IDs (paid reports)
   const [unlockedNames, setUnlockedNames] = useState<Set<string>>(new Set());
 
+  // Ref to avoid stale closure in event handlers
+  const unlockedNamesRef = useRef(unlockedNames);
+  unlockedNamesRef.current = unlockedNames;
+
   // Inline claim: nameId to unlock (shown when user returns from Gumroad)
   const [inlineClaimNameId, setInlineClaimNameId] = useState("");
 
@@ -86,7 +90,7 @@ export default function Home() {
       try {
         // Check if there's a pending unlock (user bought on Gumroad but hasn't claimed yet)
         const pending = localStorage.getItem("shan-pending-unlock");
-        if (pending && !unlockedNames.has(pending)) {
+        if (pending && !unlockedNamesRef.current.has(pending)) {
           setInlineClaimNameId(pending);
         }
 
