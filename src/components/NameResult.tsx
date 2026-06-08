@@ -27,11 +27,13 @@ function BlurOverlay({
   description,
   reportUrl,
   nameId,
+  showButton = true,
 }: {
   title: string;
   description: string;
   reportUrl?: string;
   nameId?: string;
+  showButton?: boolean;
 }) {
   const handleUnlock = () => {
     if (nameId) {
@@ -40,7 +42,6 @@ function BlurOverlay({
       } catch {}
     }
     if (reportUrl) {
-      // Add Gumroad redirect param so user lands on /thank-you after payment
       const separator = reportUrl.includes("?") ? "&" : "?";
       const url = `${reportUrl}${separator}url=${encodeURIComponent("https://newchinesename.com/thank-you")}`;
       window.open(url, "_blank", "noopener,noreferrer");
@@ -119,30 +120,37 @@ function BlurOverlay({
         )}
       </div>
 
-      {/* CTA overlay */}
-      <div className="absolute inset-0 flex flex-col items-center justify-center bg-surface/80 backdrop-blur-[2px]">
-        <p className="text-lg mb-1">&#x1F512;</p>
-        <p className="text-sm font-medium text-text-primary mb-1">
-          {title === "source"
-            ? "Classical Source"
-            : title === "story"
-            ? "Full Story"
-            : title === "meaning"
-            ? "Cultural Meaning"
-            : "Character Analysis"}
-        </p>
-        <p className="text-xs text-text-secondary text-center px-4 mb-3">
-          {description}
-        </p>
-        {reportUrl && (
-          <button
-            onClick={handleUnlock}
-            className="px-4 py-2 rounded-lg bg-deep-blue text-white text-xs font-medium hover:bg-mid-blue transition-colors"
-          >
-            Unlock Full Report — $4.99
-          </button>
-        )}
-      </div>
+      {/* CTA overlay — only shown when showButton=true */}
+      {showButton && (
+        <div className="absolute inset-0 flex flex-col items-center justify-center bg-surface/80 backdrop-blur-[2px]">
+          <p className="text-lg mb-1">&#x1F512;</p>
+          <p className="text-sm font-medium text-text-primary mb-1">
+            {title === "source"
+              ? "Classical Source"
+              : title === "story"
+              ? "Full Story"
+              : title === "meaning"
+              ? "Cultural Meaning"
+              : "Character Analysis"}
+          </p>
+          <p className="text-xs text-text-secondary text-center px-4 mb-3">
+            {description}
+          </p>
+          {reportUrl && (
+            <button
+              onClick={handleUnlock}
+              className="px-4 py-2 rounded-lg bg-deep-blue text-white text-xs font-medium hover:bg-mid-blue transition-colors"
+            >
+              Unlock Full Report — $4.99
+            </button>
+          )}
+        </div>
+      )}
+      {!showButton && (
+        <div className="absolute inset-0 flex flex-col items-center justify-center bg-surface/60 backdrop-blur-[1px]">
+          <p className="text-lg">&#x1F512;</p>
+        </div>
+      )}
     </div>
   );
 }
@@ -317,23 +325,41 @@ export default function NameResult({
 
       {showPreview ? (
         <>
+          {/* Unified unlock banner */}
+          <div className="px-6 py-4 border-b border-card-border bg-gradient-to-r from-[#EEF4F8] to-surface text-center">
+            <p className="text-xs text-text-secondary mb-2">
+              Unlock the full story, meaning, and character breakdown
+            </p>
+            <button
+              onClick={() => {
+                if (nameId) {
+                  try { localStorage.setItem("shan-pending-unlock", nameId); } catch {}
+                }
+                if (reportUrl) {
+                  const separator = reportUrl.includes("?") ? "&" : "?";
+                  const url = `${reportUrl}${separator}url=${encodeURIComponent("https://newchinesename.com/thank-you")}`;
+                  window.open(url, "_blank", "noopener,noreferrer");
+                }
+              }}
+              className="px-6 py-2.5 rounded-lg bg-deep-blue text-white text-sm font-medium hover:bg-mid-blue transition-colors"
+            >
+              Unlock Full Report — $4.99
+            </button>
+          </div>
           <BlurOverlay
             title="meaning"
-            description="Understand the philosophy behind each character"
-            reportUrl={reportUrl}
-            nameId={nameId}
+            description=""
+            showButton={false}
           />
           <BlurOverlay
             title="story"
-            description="Read the legend behind your name"
-            reportUrl={reportUrl}
-            nameId={nameId}
+            description=""
+            showButton={false}
           />
           <BlurOverlay
             title="chars"
-            description="See the ancient meaning of every stroke"
-            reportUrl={reportUrl}
-            nameId={nameId}
+            description=""
+            showButton={false}
           />
         </>
       ) : (
