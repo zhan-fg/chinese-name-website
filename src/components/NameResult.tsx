@@ -26,11 +26,23 @@ function BlurOverlay({
   title,
   description,
   reportUrl,
+  nameId,
 }: {
   title: string;
   description: string;
   reportUrl?: string;
+  nameId?: string;
 }) {
+  const handleUnlock = () => {
+    if (nameId) {
+      try {
+        localStorage.setItem("shan-pending-unlock", nameId);
+      } catch {}
+    }
+    if (reportUrl) {
+      window.open(reportUrl, "_blank", "noopener,noreferrer");
+    }
+  };
   return (
     <div className="relative">
       <div className="blur-sm select-none opacity-30 pointer-events-none">
@@ -120,14 +132,12 @@ function BlurOverlay({
           {description}
         </p>
         {reportUrl && (
-          <a
-            href={reportUrl}
-            target="_blank"
-            rel="noopener noreferrer"
+          <button
+            onClick={handleUnlock}
             className="px-4 py-2 rounded-lg bg-deep-blue text-white text-xs font-medium hover:bg-mid-blue transition-colors"
           >
             Unlock Full Report — $4.99
-          </a>
+          </button>
         )}
       </div>
     </div>
@@ -223,6 +233,7 @@ export default function NameResult({
   };
 
   const showPreview = !isUnlocked;
+  const nameId = `${name.fullChars}-${name.sourceCategory}`;
 
   return (
     <motion.div
@@ -292,21 +303,25 @@ export default function NameResult({
             title="source"
             description="See the classical poem that inspired your name"
             reportUrl={reportUrl}
+            nameId={nameId}
           />
           <BlurOverlay
             title="meaning"
             description="Understand the philosophy behind each character"
             reportUrl={reportUrl}
+            nameId={nameId}
           />
           <BlurOverlay
             title="story"
             description="Read the legend behind your name"
             reportUrl={reportUrl}
+            nameId={nameId}
           />
           <BlurOverlay
             title="chars"
             description="See the ancient meaning of every stroke"
             reportUrl={reportUrl}
+            nameId={nameId}
           />
         </>
       ) : (

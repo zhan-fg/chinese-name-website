@@ -10,14 +10,27 @@ export function ClaimForm() {
     message: string;
   } | null>(null);
 
-  // Read product info from URL params (passed by Gumroad redirect)
+  // Read product info from URL params and localStorage
   const [nameId, setNameId] = useState("");
   const [productType, setProductType] = useState("credits");
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
-    setNameId(params.get("name") || "");
-    setProductType(params.get("type") || "credits");
+    const urlName = params.get("name");
+    if (urlName) {
+      setNameId(urlName);
+      setProductType("report");
+    } else {
+      // Read pending unlock from localStorage (set by NameResult before Gumroad redirect)
+      try {
+        const pending = localStorage.getItem("shan-pending-unlock");
+        if (pending) {
+          setNameId(pending);
+          setProductType("report");
+          localStorage.removeItem("shan-pending-unlock");
+        }
+      } catch {}
+    }
   }, []);
 
   const handleClaim = async () => {
