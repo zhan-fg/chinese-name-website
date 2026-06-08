@@ -32,7 +32,10 @@ export default function PaywallModal({
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           email: recoveryEmail.trim(),
-          anonymousId,
+          anonymousId:
+            typeof window !== "undefined"
+              ? localStorage.getItem("shan-anon-id") || ""
+              : "",
         }),
       });
 
