@@ -16,7 +16,7 @@ export const GUMROAD_PRODUCTS = {
     name: "50/Day — 30 Days",
   },
   report: {
-    url: "", // TODO: create "Chinese Identity Report" product on Gumroad
+    url: "https://zhanqiuhui.gumroad.com/l/kqzwc",
     name: "Chinese Identity Report — $4.99",
   },
 } as const;
