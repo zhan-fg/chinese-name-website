@@ -186,6 +186,79 @@ export async function addCreditsByAnonymousId(anonymousId: string, amount: numbe
   await supabaseAdmin.from("users").update({ credits_remaining: (user.credits_remaining || 0) + amount, updated_at: new Date().toISOString() }).eq("id", user.id);
 }
 
+export async function addCreditsByEmail(email: string, amount: number): Promise<void> {
+  // Find existing user by email; if none, create a placeholder
+  const { data: existing } = await supabaseAdmin
+    .from("users")
+    .select("id, credits_remaining")
+    .eq("email", email.toLowerCase().trim())
+    .order("created_at", { ascending: false })
+    .limit(1)
+    .single();
+
+  if (existing) {
+    await supabaseAdmin
+      .from("users")
+      .update({
+        credits_remaining: (existing.credits_remaining || 0) + amount,
+        updated_at: new Date().toISOString(),
+      })
+      .eq("id", existing.id);
+  } else {
+    // Create a new user for this email
+    const { error } = await supabaseAdmin.from("users").insert({
+      anonymous_id: `gumroad-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+      email: email.toLowerCase().trim(),
+      free_uses_remaining: 0,
+      credits_remaining: amount,
+      subscription_status: "none",
+    });
+
+    if (error) {
+      console.error("addCreditsByEmail insert failed:", error);
+    }
+  }
+}
+
+export async function setSubscriptionByEmail(email: string): Promise<void> {
+  const endDate = new Date();
+  endDate.setDate(endDate.getDate() + 30);
+
+  const { data: existing } = await supabaseAdmin
+    .from("users")
+    .select("id")
+    .eq("email", email.toLowerCase().trim())
+    .order("created_at", { ascending: false })
+    .limit(1)
+    .single();
+
+  if (existing) {
+    await supabaseAdmin
+      .from("users")
+      .update({
+        subscription_status: "active",
+        subscription_end: endDate.toISOString(),
+        updated_at: new Date().toISOString(),
+      })
+      .eq("id", existing.id);
+  } else {
+    const { error } = await supabaseAdmin.from("users").insert({
+      anonymous_id: `gumroad-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+      email: email.toLowerCase().trim(),
+      free_uses_remaining: 0,
+      credits_remaining: 0,
+      subscription_status: "active",
+      subscription_end: endDate.toISOString(),
+      daily_uses: 0,
+      daily_date: new Date().toISOString().slice(0, 10),
+    });
+
+    if (error) {
+      console.error("setSubscriptionByEmail insert failed:", error);
+    }
+  }
+}
+
 export async function setSubscriptionStatus(stripeCustomerId: string, status: "active" | "cancelled" | "past_due", subscriptionEnd?: string): Promise<void> {
   await supabaseAdmin.from("users").update({ subscription_status: status, subscription_end: subscriptionEnd || null, updated_at: new Date().toISOString() }).eq("stripe_customer_id", stripeCustomerId);
 }
