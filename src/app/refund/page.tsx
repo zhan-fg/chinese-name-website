@@ -120,10 +120,10 @@ export default function RefundPage() {
             <p>
               Contact us at{" "}
               <a
-                href="mailto:shanshui.name@gmail.com"
+                href="mailto:support@newchinesename.com"
                 className="text-deep-blue hover:underline"
               >
-                shanshui.name@gmail.com
+                support@newchinesename.com
               </a>
               . We aim to respond to all refund requests within 2 business
               days.
@@ -151,10 +151,10 @@ export default function RefundPage() {
               If you believe an unauthorized charge has been made, please
               contact us first at{" "}
               <a
-                href="mailto:shanshui.name@gmail.com"
+                href="mailto:support@newchinesename.com"
                 className="text-deep-blue hover:underline"
               >
-                shanshui.name@gmail.com
+                support@newchinesename.com
               </a>{" "}
               before initiating a chargeback with your bank. We can resolve
               most issues faster than the formal chargeback process.

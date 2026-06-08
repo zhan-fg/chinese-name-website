@@ -27,10 +27,10 @@ export default function ContactPage() {
               press — reach us at:
             </p>
             <a
-              href="mailto:shanshui.name@gmail.com"
+              href="mailto:support@newchinesename.com"
               className="inline-block text-deep-blue hover:underline font-medium text-base"
             >
-              shanshui.name@gmail.com
+              support@newchinesename.com
             </a>
             <p className="mt-3 text-xs text-mist">
               We typically respond within 2-3 business days.
