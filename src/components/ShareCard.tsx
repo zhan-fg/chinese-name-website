@@ -162,7 +162,7 @@ export default function ShareCard({ name, onClose }: Props) {
     const hostname =
       typeof window !== "undefined"
         ? window.location.hostname
-        : "shanshui.name";
+        : "newchinesename.com";
     ctx.font = "400 22px 'Inter', sans-serif";
     ctx.fillStyle = "rgba(255,255,255,0.5)";
     ctx.fillText(hostname, W / 2, H * 0.975);
