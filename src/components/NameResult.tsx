@@ -299,15 +299,24 @@ export default function NameResult({
         </span>
       </div>
 
-      {/* GATED SECTIONS — shown blurred with unlock CTA for free users */}
+      {/* GATED SECTIONS */}
+      {/* Layer 1: Classical Source — ALWAYS visible, even for free users */}
+      <div className="px-6 py-5 border-b border-card-border bg-surface">
+        <blockquote className="text-sm text-text-primary leading-relaxed italic mb-2 font-light">
+          &ldquo;{name.sourceText}&rdquo;
+        </blockquote>
+        <p className="text-xs text-text-secondary">
+          &mdash; {name.sourceAttribution}
+        </p>
+        <div className="mt-3 pt-3 border-t border-card-border/50">
+          <p className="text-sm text-text-secondary leading-relaxed">
+            &ldquo;{name.sourceTranslation}&rdquo;
+          </p>
+        </div>
+      </div>
+
       {showPreview ? (
         <>
-          <BlurOverlay
-            title="source"
-            description="See the classical poem that inspired your name"
-            reportUrl={reportUrl}
-            nameId={nameId}
-          />
           <BlurOverlay
             title="meaning"
             description="Understand the philosophy behind each character"
@@ -329,21 +338,6 @@ export default function NameResult({
         </>
       ) : (
         <>
-          {/* Layer 1: Source text + translation */}
-          <div className="px-6 py-5 border-b border-card-border bg-surface">
-            <blockquote className="text-sm text-text-primary leading-relaxed italic mb-2 font-light">
-              &ldquo;{name.sourceText}&rdquo;
-            </blockquote>
-            <p className="text-xs text-text-secondary">
-              &mdash; {name.sourceAttribution}
-            </p>
-            <div className="mt-3 pt-3 border-t border-card-border/50">
-              <p className="text-sm text-text-secondary leading-relaxed">
-                &ldquo;{name.sourceTranslation}&rdquo;
-              </p>
-            </div>
-          </div>
-
           {/* Layer 2: Explanation + user bridge */}
           <div className="px-6 py-5 border-b border-card-border bg-surface">
             <h3 className="text-xs font-medium text-deep-blue uppercase tracking-wider mb-2">
