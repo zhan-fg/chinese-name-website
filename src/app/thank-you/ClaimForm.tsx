@@ -8,6 +8,7 @@ export function ClaimForm() {
   const [result, setResult] = useState<{
     type: "success" | "error";
     message: string;
+    action?: "view-report" | "generate";
   } | null>(null);
 
   // Read product info from URL params and localStorage
@@ -21,13 +22,13 @@ export function ClaimForm() {
       setNameId(urlName);
       setProductType("report");
     } else {
-      // Read pending unlock from localStorage (set by NameResult before Gumroad redirect)
+      // Read pending unlock from localStorage (set by BlurOverlay before Gumroad redirect)
       try {
         const pending = localStorage.getItem("shan-pending-unlock");
         if (pending) {
           setNameId(pending);
           setProductType("report");
-          localStorage.removeItem("shan-pending-unlock");
+          // Keep the pending item until claim succeeds
         }
       } catch {}
     }
@@ -52,6 +53,13 @@ export function ClaimForm() {
       const data = await res.json();
 
       if (res.ok && data.success) {
+        // Clean up pending unlock
+        if (nameId && productType === "report") {
+          try {
+            localStorage.removeItem("shan-pending-unlock");
+          } catch {}
+        }
+
         // Save unlocked names to localStorage
         if (nameId && productType === "report") {
           try {
@@ -67,10 +75,11 @@ export function ClaimForm() {
         setResult({
           type: "success",
           message: data.isSubscription
-            ? "Your Report is unlocked! Go see your full Chinese identity →"
+            ? "Your Report is unlocked!"
             : data.isUnlock
             ? "Your Chinese Identity Report is unlocked!"
-            : `${data.credits || ""} credits added! Go generate names →`,
+            : `${data.credits || ""} credits added!`,
+          action: data.isUnlock ? "view-report" : "generate",
         });
       } else {
         setResult({
@@ -109,14 +118,43 @@ export function ClaimForm() {
       </div>
 
       {result && (
-        <p
-          className={`text-sm mt-3 ${
-            result.type === "success" ? "text-green-700" : "text-red-600"
+        <div
+          className={`text-sm mt-3 p-3 rounded-lg ${
+            result.type === "success"
+              ? "bg-green-50 border border-green-200"
+              : "bg-red-50 border border-red-200"
           }`}
         >
-          {result.type === "success" ? "✓ " : "✗ "}
-          {result.message}
-        </p>
+          <p
+            className={
+              result.type === "success" ? "text-green-700" : "text-red-600"
+            }
+          >
+            {result.type === "success" ? "✓ " : "✗ "}
+            {result.message}
+          </p>
+          {result.type === "success" && result.action && (
+            <div className="mt-3">
+              {result.action === "view-report" ? (
+                <p className="text-xs text-green-600 mb-2">
+                  Go back to the main page and refresh to see your full report.
+                </p>
+              ) : (
+                <p className="text-xs text-green-600 mb-2">
+                  Go back to the main page and refresh to use your credits.
+                </p>
+              )}
+              <a
+                href="/"
+                className="inline-block px-4 py-2 rounded-lg bg-deep-blue text-white text-xs font-medium hover:bg-mid-blue transition-colors"
+              >
+                {result.action === "view-report"
+                  ? "View My Report →"
+                  : "Generate Names →"}
+              </a>
+            </div>
+          )}
+        </div>
       )}
     </div>
   );

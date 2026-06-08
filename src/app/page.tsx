@@ -53,6 +53,9 @@ export default function Home() {
   // Track unlocked name IDs (paid reports)
   const [unlockedNames, setUnlockedNames] = useState<Set<string>>(new Set());
 
+  // Pending unlock reminder: show toast when user returns from Gumroad without claiming
+  const [showClaimReminder, setShowClaimReminder] = useState(false);
+
   // Load unlocked names from localStorage on mount
   useEffect(() => {
     try {
@@ -62,6 +65,53 @@ export default function Home() {
         setUnlockedNames(new Set(names));
       }
     } catch {}
+
+    // Listen for cross-tab changes (e.g. /thank-you page updates shan-unlocked)
+    const handleStorage = (e: StorageEvent) => {
+      if (e.key === "shan-unlocked" && e.newValue) {
+        try {
+          const names: string[] = JSON.parse(e.newValue);
+          setUnlockedNames(new Set(names));
+        } catch {}
+      }
+    };
+    window.addEventListener("storage", handleStorage);
+    return () => window.removeEventListener("storage", handleStorage);
+  }, []);
+
+  // When user returns to this tab (after Gumroad payment), re-check localStorage
+  useEffect(() => {
+    const handleFocus = () => {
+      try {
+        // Check if there's a pending unlock (user bought on Gumroad but hasn't claimed yet)
+        const pending = localStorage.getItem("shan-pending-unlock");
+        if (pending) {
+          setShowClaimReminder(true);
+        }
+
+        // Re-read unlocked names (might have been updated by /thank-you tab)
+        const stored = localStorage.getItem("shan-unlocked");
+        if (stored) {
+          const names: string[] = JSON.parse(stored);
+          setUnlockedNames((prev) => {
+            const next = new Set(prev);
+            let added = false;
+            for (const n of names) {
+              if (!next.has(n)) { next.add(n); added = true; }
+            }
+            return added ? new Set(next) : prev;
+          });
+        }
+      } catch {}
+    };
+    window.addEventListener("focus", handleFocus);
+    window.addEventListener("visibilitychange", () => {
+      if (document.visibilityState === "visible") handleFocus();
+    });
+    return () => {
+      window.removeEventListener("focus", handleFocus);
+      window.removeEventListener("visibilitychange", handleFocus);
+    };
   }, []);
 
   // Check if current name is unlocked (paid report)
@@ -340,6 +390,24 @@ export default function Home() {
         <div className="px-4 mb-4">
           <div className="max-w-sm mx-auto p-3 rounded-lg bg-red-50 border border-red-200 text-red-700 text-xs text-center">
             {error}
+          </div>
+        </div>
+      )}
+
+      {/* Claim reminder — shown when user returns from Gumroad without claiming */}
+      {showClaimReminder && (
+        <div className="px-4 mb-4">
+          <div className="max-w-sm mx-auto p-3 rounded-lg bg-amber-50 border border-amber-200 text-center">
+            <p className="text-xs text-amber-800 mb-2">
+              You purchased a report on Gumroad. Enter your email to unlock it.
+            </p>
+            <a
+              href="/thank-you"
+              className="inline-block px-4 py-1.5 rounded-lg bg-deep-blue text-white text-xs font-medium hover:bg-mid-blue transition-colors"
+              onClick={() => setShowClaimReminder(false)}
+            >
+              Claim Your Report →
+            </a>
           </div>
         </div>
       )}

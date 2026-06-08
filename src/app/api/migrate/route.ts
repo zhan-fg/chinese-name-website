@@ -1,8 +1,9 @@
 import { NextResponse } from "next/server";
-import { supabaseAdmin } from "@/lib/supabase";
 
 // One-time migration: add daily tracking columns
 export async function GET() {
+  // Dynamic import to avoid build-time Supabase connection
+  const { supabaseAdmin } = await import("@/lib/supabase");
   const results: Record<string, string> = {};
 
   try {
