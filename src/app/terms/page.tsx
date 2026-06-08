@@ -78,7 +78,24 @@ export default function TermsPage() {
 
           <section>
             <h2 className="text-base font-medium text-text-primary mb-2">
-              5. Limitation of Liability
+              5. Payment and Refunds
+            </h2>
+            <p>
+              Paid services (credit packs and subscriptions) are processed
+              through our payment provider. All purchases are subject to our{" "}
+              <a
+                href="/refund"
+                className="text-deep-blue hover:underline"
+              >
+                Refund Policy
+              </a>
+              , which is incorporated into these terms by reference.
+            </p>
+          </section>
+
+          <section>
+            <h2 className="text-base font-medium text-text-primary mb-2">
+              6. Limitation of Liability
             </h2>
             <p>
               Shan Shui is provided &ldquo;as is&rdquo; without warranties of any
@@ -90,7 +107,7 @@ export default function TermsPage() {
 
           <section>
             <h2 className="text-base font-medium text-text-primary mb-2">
-              6. Service Availability
+              7. Service Availability
             </h2>
             <p>
               We reserve the right to modify, suspend, or discontinue the service
@@ -100,7 +117,7 @@ export default function TermsPage() {
 
           <section>
             <h2 className="text-base font-medium text-text-primary mb-2">
-              7. Changes to Terms
+              8. Changes to Terms
             </h2>
             <p>
               We may update these terms at any time. Continued use of the service
@@ -110,7 +127,7 @@ export default function TermsPage() {
 
           <section>
             <h2 className="text-base font-medium text-text-primary mb-2">
-              8. Contact
+              9. Contact
             </h2>
             <p>
               For questions about these terms, contact us through{" "}

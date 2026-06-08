@@ -180,7 +180,14 @@ export default function PaywallModal({
 
             {/* Trust */}
             <p className="text-[10px] text-mist text-center mb-3">
-              Secured by PayPal &middot; 30-day satisfaction guarantee
+              Secured by PayPal &middot;{" "}
+              <a
+                href="/refund"
+                target="_blank"
+                className="underline hover:text-text-secondary"
+              >
+                7-day refund policy
+              </a>
             </p>
 
             {/* Email recovery section */}
