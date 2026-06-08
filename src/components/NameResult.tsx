@@ -253,6 +253,8 @@ export default function NameResult({
     // Store the nameId for the claim flow
     try { localStorage.setItem("shan-pending-unlock", nameId); } catch {}
 
+    let claimToken = "";
+
     // Get a one-time claim token from the server
     try {
       const res = await fetch("/api/init-claim", {
@@ -262,16 +264,17 @@ export default function NameResult({
       });
       const data = await res.json();
       if (data.token) {
-        localStorage.setItem("shan-claim-token", data.token);
+        claimToken = data.token;
+        localStorage.setItem("shan-claim-token", claimToken);
       }
     } catch {
-      // If init-claim fails, still let user proceed (token will be missing, claim will fail gracefully)
       console.error("Failed to get claim token");
     }
 
-    // Open Gumroad
+    // Open Gumroad with claim_token in URL params
+    // Gumroad Ping will send it back in url_params, linking the payment to this session
     const separator = reportUrl.includes("?") ? "&" : "?";
-    const url = `${reportUrl}${separator}url=${encodeURIComponent("https://newchinesename.com/thank-you")}`;
+    const url = `${reportUrl}${separator}claim_token=${encodeURIComponent(claimToken)}`;
     window.open(url, "_blank", "noopener,noreferrer");
   };
 

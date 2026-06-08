@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 
 interface Props {
@@ -10,37 +10,71 @@ interface Props {
 }
 
 /**
- * Inline email claim form. Appears on the main page when the user
- * returns from Gumroad with a pending unlock in localStorage.
- * Calls /api/claim-gumroad directly — no page navigation needed.
+ * Inline claim modal. Appears when user returns from Gumroad.
+ *
+ * Polls /api/claim-status to check if Gumroad Ping has verified the payment.
+ * When verified, auto-claims without asking for email.
+ * If polling times out, falls back to manual email input.
  */
 export default function InlineClaim({ nameId, onSuccess, onClose }: Props) {
+  const [phase, setPhase] = useState<"polling" | "manual" | "claiming" | "done">("polling");
   const [email, setEmail] = useState("");
-  const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  const pollCount = useRef(0);
+  const maxPolls = 30; // 30 × 2s = 60s timeout
 
-  // Extract display name from nameId (e.g. "思远-poetry" → "思远")
+  // Extract display name
   const displayName = nameId.includes("-")
     ? nameId.slice(0, nameId.lastIndexOf("-"))
     : nameId;
 
-  const handleClaim = async () => {
-    if (!email.trim()) return;
-    setLoading(true);
-    setError("");
+  // Poll for Gumroad Ping verification
+  useEffect(() => {
+    if (phase !== "polling") return;
 
-    // Read the claim token from localStorage (set by handleInitClaim before Gumroad)
-    let token = "";
-    try {
-      token = localStorage.getItem("shan-claim-token") || "";
-    } catch {}
+    const token = getToken();
+    if (!token) {
+      setPhase("manual");
+      return;
+    }
 
+    const poll = async () => {
+      pollCount.current++;
+      try {
+        const res = await fetch(`/api/claim-status?token=${encodeURIComponent(token)}`);
+        const data = await res.json();
+
+        if (data.status === "verified") {
+          // Gumroad Ping has verified this payment — auto-claim!
+          setEmail(data.email || "");
+          setPhase("claiming");
+          doClaim(data.email || "", token);
+        } else if (data.status === "claimed") {
+          // Already claimed (unusual but possible)
+          onSuccess();
+          setPhase("done");
+        } else if (data.status === "not_found" || pollCount.current >= maxPolls) {
+          // Timeout — fall back to manual email input
+          setPhase("manual");
+        }
+        // "pending" → keep polling
+      } catch {
+        if (pollCount.current >= maxPolls) setPhase("manual");
+      }
+    };
+
+    poll(); // First poll immediately
+    const interval = setInterval(poll, 2000);
+    return () => clearInterval(interval);
+  }, [phase, nameId, onSuccess]);
+
+  const doClaim = async (userEmail: string, token: string) => {
     try {
       const res = await fetch("/api/claim-gumroad", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          email: email.trim(),
+          email: userEmail,
           productType: "report",
           nameId,
           token,
@@ -62,15 +96,23 @@ export default function InlineClaim({ nameId, onSuccess, onClose }: Props) {
           localStorage.removeItem("shan-claim-token");
         } catch {}
 
-        onSuccess();
+        setPhase("done");
+        setTimeout(onSuccess, 500);
       } else {
-        setError(data.error || "Something went wrong. Please try again.");
+        setError(data.error || "Claim failed. Please try again.");
+        setPhase("manual");
       }
     } catch {
       setError("Network error. Please try again.");
-    } finally {
-      setLoading(false);
+      setPhase("manual");
     }
+  };
+
+  const handleManualClaim = async () => {
+    if (!email.trim()) return;
+    const token = getToken();
+    setPhase("claiming");
+    await doClaim(email.trim(), token);
   };
 
   return (
@@ -92,50 +134,77 @@ export default function InlineClaim({ nameId, onSuccess, onClose }: Props) {
         >
           <div className="w-10 h-1 bg-gray-200 rounded-full mx-auto mb-4 sm:hidden" />
 
-          <div className="text-center mb-5">
-            <p className="text-sm text-text-secondary mb-1">
-              You bought the report for
-            </p>
-            <p className="text-xl font-light text-text-primary">
-              {displayName}
-            </p>
-          </div>
-
-          <p className="text-xs text-text-secondary text-center mb-3">
-            Enter your Gumroad email to unlock it instantly.
-          </p>
-
-          <div className="flex gap-2 mb-3">
-            <input
-              type="email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              onKeyDown={(e) => e.key === "Enter" && handleClaim()}
-              placeholder="you@email.com"
-              autoFocus
-              className="flex-1 px-4 py-2.5 rounded-lg border border-card-border text-sm focus:outline-none focus:border-deep-blue"
-            />
-            <button
-              onClick={handleClaim}
-              disabled={loading || !email.trim()}
-              className="px-6 py-2.5 rounded-lg bg-deep-blue text-white text-sm font-medium hover:bg-mid-blue transition-colors disabled:opacity-50"
-            >
-              {loading ? "..." : "Unlock"}
-            </button>
-          </div>
-
-          {error && (
-            <p className="text-xs text-red-600 text-center mb-2">{error}</p>
+          {phase === "polling" && (
+            <div className="text-center py-4">
+              <div className="animate-spin w-8 h-8 border-2 border-deep-blue border-t-transparent rounded-full mx-auto mb-3" />
+              <p className="text-sm text-text-secondary">
+                Verifying your payment...
+              </p>
+              <p className="text-xs text-mist mt-1">
+                This usually takes a few seconds
+              </p>
+            </div>
           )}
 
-          <button
-            onClick={onClose}
-            className="w-full py-2 text-xs text-text-secondary hover:text-text-primary transition-colors"
-          >
-            Not now
-          </button>
+          {(phase === "manual" || phase === "claiming") && (
+            <>
+              <div className="text-center mb-5">
+                <p className="text-sm text-text-secondary mb-1">
+                  Unlock report for
+                </p>
+                <p className="text-xl font-light text-text-primary">
+                  {displayName}
+                </p>
+              </div>
+
+              {error && (
+                <p className="text-xs text-red-600 text-center mb-3 p-2 bg-red-50 rounded-lg">{error}</p>
+              )}
+
+              <p className="text-xs text-text-secondary text-center mb-3">
+                Enter the email you used on Gumroad
+              </p>
+
+              <div className="flex gap-2 mb-3">
+                <input
+                  type="email"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  onKeyDown={(e) => e.key === "Enter" && handleManualClaim()}
+                  placeholder="you@email.com"
+                  autoFocus
+                  disabled={phase === "claiming"}
+                  className="flex-1 px-4 py-2.5 rounded-lg border border-card-border text-sm focus:outline-none focus:border-deep-blue disabled:opacity-50"
+                />
+                <button
+                  onClick={handleManualClaim}
+                  disabled={phase === "claiming" || !email.trim()}
+                  className="px-6 py-2.5 rounded-lg bg-deep-blue text-white text-sm font-medium hover:bg-mid-blue transition-colors disabled:opacity-50"
+                >
+                  {phase === "claiming" ? "..." : "Unlock"}
+                </button>
+              </div>
+            </>
+          )}
+
+          {phase !== "polling" && (
+            <button
+              onClick={onClose}
+              className="w-full py-2 text-xs text-text-secondary hover:text-text-primary transition-colors"
+            >
+              Not now
+            </button>
+          )}
         </motion.div>
       </motion.div>
     </AnimatePresence>
   );
+}
+
+function getToken(): string {
+  try {
+    return localStorage.getItem("shan-claim-token") || "";
+  } catch {
+    return "";
+  }
 }

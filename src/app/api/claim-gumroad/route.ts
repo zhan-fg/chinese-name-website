@@ -30,16 +30,16 @@ export async function POST(request: NextRequest) {
         );
       }
 
-      // Verify the token
-      const { data: tokenRecord, error: tokenError } = await supabaseAdmin
+      // Verify the token (accepts "pending" or "verified" status)
+      const { data: pendingRecord } = await supabaseAdmin
         .from("claim_tokens")
-        .select("id, name_id, status, expires_at, claimed_at")
+        .select("id, name_id, status, expires_at, claimed_at, email")
         .eq("token", token)
         .eq("name_id", nameId)
-        .eq("status", "pending")
-        .single();
+        .in("status", ["pending", "verified"])
+        .maybeSingle();
 
-      if (tokenError || !tokenRecord) {
+      if (!pendingRecord) {
         return NextResponse.json(
           { error: "Invalid or expired claim token. Please go back and try again." },
           { status: 400 }
@@ -47,11 +47,11 @@ export async function POST(request: NextRequest) {
       }
 
       // Check expiry
-      if (new Date(tokenRecord.expires_at) < new Date()) {
+      if (new Date(pendingRecord.expires_at) < new Date()) {
         await supabaseAdmin
           .from("claim_tokens")
           .update({ status: "expired" })
-          .eq("id", tokenRecord.id);
+          .eq("id", pendingRecord.id);
         return NextResponse.json(
           { error: "Claim token has expired. Please go back and try again." },
           { status: 400 }
@@ -66,7 +66,7 @@ export async function POST(request: NextRequest) {
           claimed_at: new Date().toISOString(),
           email: normalizedEmail,
         })
-        .eq("id", tokenRecord.id);
+        .eq("id", pendingRecord.id);
 
       if (updateTokenError) {
         console.error("Failed to mark token as claimed:", updateTokenError);

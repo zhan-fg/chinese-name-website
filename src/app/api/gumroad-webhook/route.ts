@@ -33,6 +33,23 @@ export async function POST(request: NextRequest) {
     const permalink = body.product_permalink || "";
     const productName = body.product_name || "";
 
+    // Extract claim_token from url_params (Gumroad passes URL query params back)
+    // url_params can be a JSON string or individual url_params[key] fields
+    let claimToken = "";
+    try {
+      // Try JSON format first: {"claim_token": "abc123", ...}
+      if (body.url_params) {
+        const parsed = typeof body.url_params === "string"
+          ? JSON.parse(body.url_params.replace(/'/g, '"'))
+          : body.url_params;
+        claimToken = parsed.claim_token || "";
+      }
+    } catch {}
+    // Fallback: url_params[claim_token] pattern
+    if (!claimToken) {
+      claimToken = body["url_params[claim_token]"] || "";
+    }
+
     if (!saleId || !email) {
       console.error("Gumroad Ping: missing sale_id or email", { saleId, email });
       return NextResponse.json({ error: "Missing required fields" }, { status: 400 });
@@ -94,6 +111,21 @@ export async function POST(request: NextRequest) {
       price,
       created_at: new Date().toISOString(),
     });
+
+    // ── Link claim_token to verified email (for auto-claim without email input) ──
+    if (claimToken) {
+      const { error: tokenErr } = await supabaseAdmin
+        .from("claim_tokens")
+        .update({ email: normalizedEmail, status: "verified" })
+        .eq("token", claimToken)
+        .eq("status", "pending");
+
+      if (tokenErr) {
+        console.error("Failed to link claim_token:", tokenErr);
+      } else {
+        console.log(`Gumroad Ping: linked claim_token ${claimToken.slice(0, 8)}... to ${normalizedEmail}`);
+      }
+    }
 
     return NextResponse.json({ ok: true });
   } catch (error) {
