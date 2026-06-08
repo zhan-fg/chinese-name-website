@@ -12,6 +12,7 @@ import StepIndicator from "@/components/StepIndicator";
 import BaziDisclaimer from "@/components/BaziDisclaimer";
 import CreditBadge from "@/components/CreditBadge";
 import PaywallModal from "@/components/PaywallModal";
+import { GUMROAD_PRODUCTS } from "@/lib/gumroad";
 
 type Step = "category" | "userinfo" | "surname" | "loading" | "result";
 
@@ -48,6 +49,24 @@ export default function Home() {
 
   // Track generated fullChars for dedup
   const [generatedNames, setGeneratedNames] = useState<string[]>([]);
+
+  // Track unlocked name IDs (paid reports)
+  const [unlockedNames, setUnlockedNames] = useState<Set<string>>(new Set());
+
+  // Load unlocked names from localStorage on mount
+  useEffect(() => {
+    try {
+      const stored = localStorage.getItem("shan-unlocked");
+      if (stored) {
+        const names: string[] = JSON.parse(stored);
+        setUnlockedNames(new Set(names));
+      }
+    } catch {}
+  }, []);
+
+  // Check if current name is unlocked
+  const currentNameId = result ? `${result.fullChars}-${result.sourceCategory}` : "";
+  const isCurrentUnlocked = unlockedNames.has(currentNameId);
 
   // Anonymous user ID — persisted in localStorage for credit tracking
   const [anonymousId, setAnonymousId] = useState("");
@@ -384,6 +403,8 @@ export default function Home() {
             onRetry={handleRetry}
             onReset={handleReset}
             onShare={handleShare}
+            isUnlocked={isCurrentUnlocked}
+            reportUrl={GUMROAD_PRODUCTS.report.url || undefined}
           />
         )}
       </div>

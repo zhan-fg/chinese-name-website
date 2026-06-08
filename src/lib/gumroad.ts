@@ -15,6 +15,10 @@ export const GUMROAD_PRODUCTS = {
     url: "https://zhanqiuhui.gumroad.com/l/uawodz",
     name: "50/Day — 30 Days",
   },
+  report: {
+    url: "", // TODO: create "Chinese Identity Report" product on Gumroad
+    name: "Chinese Identity Report — $4.99",
+  },
 } as const;
 
 export type GumroadProductId = keyof typeof GUMROAD_PRODUCTS;
