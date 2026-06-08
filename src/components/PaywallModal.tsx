@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { PRICING_PLANS, type PricingPlanId } from "@/lib/paypal";
+import { GUMROAD_PRODUCTS } from "@/lib/gumroad";
 
 interface Props {
   visible: boolean;
@@ -30,7 +31,13 @@ export default function PaywallModal({
     setLoading(planId);
     setError(null);
 
-    // Fallback: read from localStorage if prop is empty
+    const gumroadUrl = GUMROAD_PRODUCTS[planId]?.url;
+    if (gumroadUrl) {
+      window.location.href = gumroadUrl;
+      return;
+    }
+
+    // Fallback: use PayPal API if no Gumroad URL configured
     const anonId = anonymousId || (typeof window !== "undefined" ? localStorage.getItem("shan-anon-id") : null);
     if (!anonId) {
       setError("Session not ready. Please refresh the page and try again.");
@@ -180,7 +187,7 @@ export default function PaywallModal({
 
             {/* Trust */}
             <p className="text-[10px] text-mist text-center mb-3">
-              Secured by PayPal &middot;{" "}
+              Secured by Gumroad &middot;{" "}
               <a
                 href="/refund"
                 target="_blank"

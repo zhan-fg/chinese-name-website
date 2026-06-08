@@ -1,5 +1,7 @@
 "use client";
 
+import { GUMROAD_PRODUCTS } from "@/lib/gumroad";
+
 export default function PricingPage() {
   return (
     <main className="min-h-screen bg-[#F8FAFB]">
@@ -48,14 +50,14 @@ export default function PricingPage() {
               <li>&#x2022; Credits never expire</li>
               <li>&#x2022; One-time payment</li>
             </ul>
-            <button
-              onClick={() =>
-                (window.location.href = "/?buy=credit_5")
-              }
-              className="block w-full py-2.5 rounded-lg bg-deep-blue text-white text-sm font-medium hover:bg-mid-blue transition-colors"
+            <a
+              href={GUMROAD_PRODUCTS.credit_5.url}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="block w-full py-2.5 rounded-lg bg-deep-blue text-white text-sm font-medium hover:bg-mid-blue transition-colors text-center"
             >
               Buy 5 Credits
-            </button>
+            </a>
           </div>
 
           {/* Unlimited */}
@@ -74,24 +76,24 @@ export default function PricingPage() {
               <li>&#x2022; Save name history</li>
               <li>&#x2022; Cancel anytime</li>
             </ul>
-            <button
-              onClick={() =>
-                (window.location.href = "/?buy=subscription")
-              }
-              className="block w-full py-2.5 rounded-lg bg-deep-blue text-white text-sm font-medium hover:bg-mid-blue transition-colors"
+            <a
+              href={GUMROAD_PRODUCTS.subscription.url}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="block w-full py-2.5 rounded-lg bg-deep-blue text-white text-sm font-medium hover:bg-mid-blue transition-colors text-center"
             >
               Get 30 Days
-            </button>
+            </a>
           </div>
         </div>
 
         <div className="mt-10 p-5 rounded-card bg-surface border border-card-border text-center">
           <p className="text-xs text-text-secondary mb-3">
-            All payments are securely processed by PayPal. Your financial data
+            All payments are securely processed by Gumroad. Your financial data
             never touches our servers.
           </p>
           <div className="flex justify-center gap-2 text-[10px] text-mist">
-            <span>&#x2022; PayPal</span>
+            <span>&#x2022; Gumroad</span>
             <span>&#x2022; Visa</span>
             <span>&#x2022; Mastercard</span>
             <span>&#x2022; Amex</span>
