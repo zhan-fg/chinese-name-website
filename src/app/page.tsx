@@ -53,6 +53,9 @@ export default function Home() {
   // Track unlocked name IDs (paid reports)
   const [unlockedNames, setUnlockedNames] = useState<Set<string>>(new Set());
 
+  // Track subscription status
+  const [isSubscriber, setIsSubscriber] = useState(false);
+
   // Load unlocked names from localStorage on mount
   useEffect(() => {
     try {
@@ -64,9 +67,9 @@ export default function Home() {
     } catch {}
   }, []);
 
-  // Check if current name is unlocked
+  // Check if current name is unlocked (subscribers + paid reports always unlocked)
   const currentNameId = result ? `${result.fullChars}-${result.sourceCategory}` : "";
-  const isCurrentUnlocked = unlockedNames.has(currentNameId);
+  const isCurrentUnlocked = isSubscriber || unlockedNames.has(currentNameId);
 
   // Anonymous user ID — persisted in localStorage for credit tracking
   const [anonymousId, setAnonymousId] = useState("");
@@ -200,6 +203,7 @@ export default function Home() {
 
         // Only enforce limit if we got valid credit data
         if (!credits.error && credits.totalRemaining !== undefined) {
+          setIsSubscriber(credits.isSubscriber || false);
           if (!credits.isSubscriber && credits.freeRemaining <= 0 && credits.creditsRemaining <= 0) {
             setShowPaywall(true);
             return;
