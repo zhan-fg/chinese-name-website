@@ -1,92 +1,108 @@
 import { NextRequest, NextResponse } from "next/server";
-import { createHmac, timingSafeEqual } from "crypto";
 import { supabaseAdmin } from "@/lib/supabase";
-
-const WEBHOOK_SECRET = process.env.GUMROAD_WEBHOOK_SECRET || "";
 
 /**
  * POST /api/gumroad-webhook
- * Handles Gumroad sale notifications. Verifies HMAC signature,
- * then stores verified purchases for claim verification.
+ *
+ * Gumroad Ping endpoint. Gumroad sends an HTTP POST (x-www-form-urlencoded)
+ * whenever a product is purchased. This is the source of truth for payments.
  *
  * Product mapping:
- *   $4.99 (499 cents) — Chinese Identity Report → 1 report unlock
- *   $5.99 (599 cents) — 5 Name Credits → 5 credits
- *   $9.99 (999 cents) — Premium 20 Reports → 20 report unlocks
- *   $12.99 (1299 cents) — 15 Name Credits → 15 credits
+ *   $4.99 (499 cents, permalink: kqzwc) — Identity Report → 1 report unlock
+ *   $9.99 (999 cents, permalink: uawodz) — Premium → 20 report unlocks
  */
 export async function POST(request: NextRequest) {
   try {
-    const rawBody = await request.text();
-    const signature = request.headers.get("x-gumroad-signature") || "";
+    // Gumroad Ping sends x-www-form-urlencoded, NOT JSON
+    const contentType = request.headers.get("content-type") || "";
+    let body: Record<string, string> = {};
 
-    // Verify signature
-    if (!WEBHOOK_SECRET) {
-      console.error("GUMROAD_WEBHOOK_SECRET not set — webhook disabled");
-      return NextResponse.json({ error: "Not configured" }, { status: 500 });
+    if (contentType.includes("application/json")) {
+      body = await request.json();
+    } else {
+      const text = await request.text();
+      const params = new URLSearchParams(text);
+      for (const [key, value] of params) {
+        body[key] = value;
+      }
     }
 
-    if (!verifySignature(rawBody, signature)) {
-      console.error("Gumroad webhook signature mismatch");
-      return NextResponse.json({ error: "Invalid signature" }, { status: 401 });
-    }
-
-    const body = JSON.parse(rawBody);
-
-    // Only process "sale" events
-    const eventType = body.event || "sale";
-    if (eventType !== "sale") {
-      return NextResponse.json({ ok: true, skipped: eventType });
-    }
-
+    const saleId = body.sale_id;
     const email = body.email;
-    const price = body.price; // cents
+    const price = parseInt(body.price || "0", 10);
+    const permalink = body.product_permalink || "";
     const productName = body.product_name || "";
-    const permalink = body.permalink || "";
 
-    if (!email) {
-      return NextResponse.json(
-        { error: "No email in webhook" },
-        { status: 400 }
-      );
+    if (!saleId || !email) {
+      console.error("Gumroad Ping: missing sale_id or email", { saleId, email });
+      return NextResponse.json({ error: "Missing required fields" }, { status: 400 });
     }
 
     const normalizedEmail = email.toLowerCase().trim();
 
-    // Map price to action
-    if (price === 499) {
-      // $4.99 — Chinese Identity Report: 1 report unlock
-      await addReportUnlocks(normalizedEmail, 1);
-      console.log(`Gumroad: 1 report unlock added for ${normalizedEmail} (${productName})`);
+    // ── Idempotency: check if we already processed this sale ──
+    const { data: existing } = await supabaseAdmin
+      .from("processed_sales")
+      .select("id")
+      .eq("sale_id", saleId)
+      .single();
+
+    if (existing) {
+      console.log(`Gumroad Ping: sale ${saleId} already processed`);
+      return NextResponse.json({ ok: true, deduplicated: true });
+    }
+
+    // Determine what to grant based on product
+    let reportUnlocks = 0;
+    let credits = 0;
+
+    // kqzwc = Identity Report ($4.99), uawodz = Premium ($9.99)
+    if (price === 499 || permalink === "kqzwc") {
+      reportUnlocks = 1;
+    } else if (price === 999 || permalink === "uawodz") {
+      reportUnlocks = 20;
     } else if (price === 599) {
-      // $5.99 — 5 credits
-      await addCredits(normalizedEmail, 5);
-      console.log(`Gumroad: 5 credits added for ${normalizedEmail}`);
-    } else if (price === 999) {
-      // $9.99 — Premium: 20 report unlocks
-      await addReportUnlocks(normalizedEmail, 20);
-      console.log(`Gumroad: 20 report unlocks added for ${normalizedEmail} (${productName})`);
+      credits = 5;
     } else if (price === 1299) {
-      // $12.99 — 15 credits
-      await addCredits(normalizedEmail, 15);
-      console.log(`Gumroad: 15 credits added for ${normalizedEmail}`);
+      credits = 15;
     } else {
       console.log(
-        `Gumroad: unknown price ${price} (${productName}) for ${normalizedEmail}`
+        `Gumroad Ping: unknown product price=${price} permalink=${permalink} name="${productName}"`
       );
     }
+
+    // ── Grant the purchase ──
+    if (reportUnlocks > 0) {
+      await addReportUnlocks(normalizedEmail, reportUnlocks);
+      console.log(
+        `Gumroad Ping: ${reportUnlocks} report unlocks for ${normalizedEmail} (${productName})`
+      );
+    }
+
+    if (credits > 0) {
+      await addCredits(normalizedEmail, credits);
+      console.log(
+        `Gumroad Ping: ${credits} credits for ${normalizedEmail} (${productName})`
+      );
+    }
+
+    // ── Record processed sale (idempotency) ──
+    await supabaseAdmin.from("processed_sales").insert({
+      sale_id: saleId,
+      email: normalizedEmail,
+      product_permalink: permalink,
+      price,
+      created_at: new Date().toISOString(),
+    });
 
     return NextResponse.json({ ok: true });
   } catch (error) {
     console.error("gumroad-webhook error:", error);
-    return NextResponse.json({ error: "Internal error" }, { status: 500 });
+    // Always return 200 so Gumroad doesn't retry
+    return NextResponse.json({ ok: false, error: "Internal error" }, { status: 200 });
   }
 }
 
-/**
- * Add report unlocks to a user's account.
- * Creates the user if they don't exist yet.
- */
 async function addReportUnlocks(email: string, count: number) {
   const { data: existing } = await supabaseAdmin
     .from("users")
@@ -100,16 +116,13 @@ async function addReportUnlocks(email: string, count: number) {
     await supabaseAdmin
       .from("users")
       .update({
-        report_unlocks_remaining:
-          (existing.report_unlocks_remaining || 0) + count,
+        report_unlocks_remaining: (existing.report_unlocks_remaining || 0) + count,
         updated_at: new Date().toISOString(),
       })
       .eq("id", existing.id);
   } else {
     await supabaseAdmin.from("users").insert({
-      anonymous_id: `gumroad-${Date.now()}-${Math.random()
-        .toString(36)
-        .slice(2, 8)}`,
+      anonymous_id: `gumroad-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
       email,
       free_uses_remaining: 0,
       credits_remaining: 0,
@@ -119,9 +132,6 @@ async function addReportUnlocks(email: string, count: number) {
   }
 }
 
-/**
- * Add credits to a user's account.
- */
 async function addCredits(email: string, count: number) {
   const { data: existing } = await supabaseAdmin
     .from("users")
@@ -141,29 +151,12 @@ async function addCredits(email: string, count: number) {
       .eq("id", existing.id);
   } else {
     await supabaseAdmin.from("users").insert({
-      anonymous_id: `gumroad-${Date.now()}-${Math.random()
-        .toString(36)
-        .slice(2, 8)}`,
+      anonymous_id: `gumroad-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
       email,
       free_uses_remaining: 0,
       credits_remaining: count,
       report_unlocks_remaining: 0,
       subscription_status: "none",
     });
-  }
-}
-
-function verifySignature(body: string, signature: string): boolean {
-  try {
-    const hmac = createHmac("sha256", WEBHOOK_SECRET);
-    hmac.update(body);
-    const digest = hmac.digest("hex");
-
-    const sigBuf = Buffer.from(signature);
-    const digestBuf = Buffer.from(digest);
-    if (sigBuf.length !== digestBuf.length) return false;
-    return timingSafeEqual(sigBuf, digestBuf);
-  } catch {
-    return false;
   }
 }
