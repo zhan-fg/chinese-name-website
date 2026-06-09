@@ -417,6 +417,12 @@ export default function Home() {
             Shan Shui
           </h1>
           {anonymousId && <CreditBadge anonymousId={anonymousId} refreshKey={creditRefresh} />}
+          <a
+            href="/my-names"
+            className="text-xs text-deep-blue hover:text-mid-blue transition-colors border border-deep-blue/30 rounded-lg px-2.5 py-1"
+          >
+            My Names
+          </a>
         </div>
         <p className="text-xs text-text-secondary mt-1">
           Your Chinese name, rooted in 3,000 years of poetry and legend
