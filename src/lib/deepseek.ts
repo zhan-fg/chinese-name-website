@@ -285,15 +285,15 @@ export async function generateStory(
     .replace(/{meaning}/g, nameData.meaning || "")
     .replace(/{surname}/g, nameData.surname || "")
     .replace(/{surnameMeaning}/g, nameData.surnameMeaning || "")
-    .replace(/{char1}/g, (nameData as any).char1 || "")
-    .replace(/{char2}/g, (nameData as any).char2 || "")
-    .replace(/{char1Meaning}/g, (nameData as any).char1Meaning || "")
-    .replace(/{char2Meaning}/g, (nameData as any).char2Meaning || "");
+    .replace(/{char1}/g, nameData.char1 || "")
+    .replace(/{char2}/g, nameData.char2 || "")
+    .replace(/{char1Meaning}/g, nameData.char1Meaning || "")
+    .replace(/{char2Meaning}/g, nameData.char2Meaning || "");
 
   const prompt = `Chinese cultural scholar writing for a Western audience.
 
 Full name: ${nameData.fullChars || nameData.chars}
-Given name: ${nameData.givenChars || ""} (char1: ${(nameData as any).char1 || ""} = ${(nameData as any).char1Meaning || ""}, char2: ${(nameData as any).char2 || ""} = ${(nameData as any).char2Meaning || ""})
+Given name: ${nameData.givenChars || ""} (char1: ${nameData.char1 || ""} = ${nameData.char1Meaning || ""}, char2: ${nameData.char2 || ""} = ${nameData.char2Meaning || ""})
 Surname: ${nameData.surname} (${nameData.surnameMeaning})
 Meaning: ${nameData.meaning}
 Source text: ${nameData.sourceText}
