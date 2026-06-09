@@ -153,7 +153,11 @@ export default function Home() {
           setResult(reportData);
           setStep("result");
           const nameId = `${reportData.fullChars}-${reportData.sourceCategory}`;
-          setUnlockedNames((prev) => new Set([...prev, nameId]));
+          setUnlockedNames((prev) => {
+            const next = new Set(prev);
+            next.add(nameId);
+            return next;
+          });
           sessionStorage.removeItem("shan-view-report");
           window.history.replaceState({}, "", "/");
         }
