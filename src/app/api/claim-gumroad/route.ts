@@ -83,7 +83,7 @@ export async function POST(request: NextRequest) {
 
       const reportUnlocks = userRecord?.report_unlocks_remaining || 0;
 
-      if (reportUnlocks <= 0) {
+      if (!userRecord || reportUnlocks <= 0) {
         return NextResponse.json(
           {
             error:
