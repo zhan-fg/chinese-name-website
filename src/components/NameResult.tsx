@@ -318,13 +318,6 @@ export default function NameResult({
             &ldquo;{name.meaning}&rdquo;
           </p>
         </motion.div>
-
-        {isFallback && (
-          <p className="text-xs text-accent/70 mt-3 italic">
-            (Showing a curated name from our collection — AI generation will be
-            even more personal)
-          </p>
-        )}
       </div>
 
       {/* Source badge */}
