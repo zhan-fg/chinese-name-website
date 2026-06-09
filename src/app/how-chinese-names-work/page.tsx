@@ -59,22 +59,22 @@ export default function HowChineseNamesWork() {
               characters are not randomly chosen — they are extracted from
               classical sources: poetry, philosophy, history, natural imagery, or
               mythology. A name like 云帆 (Yún Fān, Cloud Sail) comes from Li
-              Bai's poem "The Hard Road," written in 744 AD.
+              Bai&rsquo;s poem &ldquo;The Hard Road,&rdquo; written in 744 AD.
             </p>
             <p className="mb-3">
               What makes a name good or bad depends on several things. First,
               how the characters sound together — tone combinations that flow
               musically are preferred. Second, the cultural weight of the source —
-              a character from Du Fu's poetry carries more gravitas than one from
+              a character from Du Fu&rsquo;s poetry carries more gravitas than one from
               a modern dictionary. Third, the name should not be too obvious: a
-              name meaning "Beautiful Flower" reads like a vocabulary word
-              rather than a real person's name.
+              name meaning &ldquo;Beautiful Flower&rdquo; reads like a vocabulary word
+              rather than a real person&rsquo;s name.
             </p>
             <p>
               The worst mistake Westerners make is directly translating their
-              English name's meaning into Chinese. "Hope" becomes 希望 — which
+              English name&rsquo;s meaning into Chinese. &ldquo;Hope&rdquo; becomes 希望 — which
               sounds like a corporate slogan, not a human being. The Chinese
-              approach is indirect: you don't name someone "Hope," you name
+              approach is indirect: you don&rsquo;t name someone &ldquo;Hope,&rdquo; you name
               them after a poem about dawn breaking over a mountain, and let the
               meaning emerge through allusion.
             </p>
