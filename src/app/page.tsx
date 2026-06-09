@@ -471,7 +471,6 @@ export default function Home() {
         {step === "result" && result && (
           <NameResult
             name={result}
-            isFallback={(result as NameEntry & { _fallback?: boolean })._fallback}
             onRetry={handleRetry}
             onReset={handleReset}
             onShare={handleShare}

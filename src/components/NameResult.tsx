@@ -9,7 +9,6 @@ interface Props {
   onRetry: () => void;
   onReset: () => void;
   onShare: () => void;
-  isFallback?: boolean;
   /** Whether this specific name is unlocked (paid) */
   isUnlocked?: boolean;
   /** Gumroad product URL for the Report */
@@ -160,7 +159,6 @@ export default function NameResult({
   onRetry,
   onReset,
   onShare,
-  isFallback,
   isUnlocked,
   reportUrl,
 }: Props) {
