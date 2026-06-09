@@ -39,7 +39,7 @@ export default function BaziDisclaimer({ visible }: Props) {
             <p className="text-[11px] text-amber-800 leading-relaxed">
               <strong>For entertainment & education only.</strong> Bazi (八字)
               analysis is a traditional cultural practice — not scientifically
-              validated. AI interpretations are suggestive, not definitive.{" "}
+              validated. Interpretations are suggestive, not definitive.{" "}
               <a
                 href="/disclaimer"
                 className="underline hover:text-amber-900"
