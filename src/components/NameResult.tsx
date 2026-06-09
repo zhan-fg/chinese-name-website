@@ -490,6 +490,70 @@ export default function NameResult({
         </>
       )}
 
+      {/* Phase 3: Premium personality content — only when unlocked and loaded */}
+      {!showPreview && name.archetype && (
+        <>
+          {/* Chinese Personality Archetype */}
+          <div className="px-6 py-5 border-b border-card-border bg-surface">
+            <h3 className="text-xs font-medium text-deep-blue uppercase tracking-wider mb-2">
+              🏯 Your Chinese Archetype
+            </h3>
+            <p className="text-lg font-light text-text-primary mb-1">
+              {name.archetype}
+            </p>
+            <p className="text-sm text-text-secondary leading-relaxed">
+              {name.archetypeDescription}
+            </p>
+          </div>
+
+          {/* English Name Connection */}
+          {name.englishNameConnection && (
+            <div className="px-6 py-5 border-b border-card-border bg-[#F8FAFB]">
+              <h3 className="text-xs font-medium text-deep-blue uppercase tracking-wider mb-2">
+                🌉 Connection to Your English Name
+              </h3>
+              <p className="text-sm text-text-secondary leading-relaxed">
+                {name.englishNameConnection}
+              </p>
+            </div>
+          )}
+
+          {/* Native Chinese Perception */}
+          {name.nativePerception && (
+            <div className="px-6 py-5 border-b border-card-border bg-surface">
+              <h3 className="text-xs font-medium text-deep-blue uppercase tracking-wider mb-2">
+                👁 How Chinese Speakers Perceive This Name
+              </h3>
+              <p className="text-sm text-text-secondary leading-relaxed">
+                {name.nativePerception}
+              </p>
+            </div>
+          )}
+
+          {/* Blessing */}
+          {name.blessing && (
+            <div className="px-6 py-5 bg-[#F8FAFB]">
+              <h3 className="text-xs font-medium text-deep-blue uppercase tracking-wider mb-2">
+                ✨ A Blessing Hidden in Your Name
+              </h3>
+              <p className="text-sm text-text-primary leading-relaxed italic font-light">
+                {name.blessing}
+              </p>
+            </div>
+          )}
+        </>
+      )}
+
+      {/* Phase 3 loading skeleton */}
+      {!showPreview && name._personalityLoading && (
+        <div className="px-6 py-5 border-b border-card-border bg-surface">
+          <div className="flex items-center gap-3">
+            <div className="animate-spin w-4 h-4 border-2 border-deep-blue border-t-transparent rounded-full" />
+            <p className="text-xs text-mist">Crafting your personality profile...</p>
+          </div>
+        </div>
+      )}
+
       {/* Actions */}
       <div className="px-6 py-4 border-t border-card-border bg-surface flex items-center justify-between">
         <button

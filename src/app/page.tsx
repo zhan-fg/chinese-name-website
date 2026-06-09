@@ -325,6 +325,31 @@ export default function Home() {
             setResult((prev) =>
               prev ? { ...prev, ...story, _storyLoading: false } : prev
             );
+            // Phase 3: Load personality analysis
+            setResult((prev) =>
+              prev ? { ...prev, _personalityLoading: true } : prev
+            );
+            fetch("/api/generate-personality", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                nameData: { ...data, ...story },
+                sourceCategory: category,
+                englishName: name || undefined,
+                selfWord: word || undefined,
+              }),
+            })
+              .then((pRes) => pRes.json())
+              .then((personality) => {
+                setResult((prev) =>
+                  prev ? { ...prev, ...personality, _personalityLoading: false } : prev
+                );
+              })
+              .catch(() => {
+                setResult((prev) =>
+                  prev ? { ...prev, _personalityLoading: false } : prev
+                );
+              });
           })
           .catch(() => {
             setResult((prev) =>

@@ -63,4 +63,13 @@ export interface NameEntry {
   // Internal flags (not from AI)
   _fallback?: boolean;
   _storyLoading?: boolean;
+  _personalityLoading?: boolean;
+
+  // Phase 3: Premium personality analysis
+  archetype?: string;         // "The Wandering Scholar"
+  archetypeDescription?: string; // 60-80 words
+  englishNameConnection?: string; // 40-60 words
+  nativePerception?: string;  // 40-60 words
+  blessing?: string;          // 50-80 words
+  socialSummary?: string;     // 30-50 words
 }

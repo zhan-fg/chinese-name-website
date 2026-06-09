@@ -81,7 +81,7 @@ export async function generateName(
   const prompt = `Chinese name scholar. Generate a SURNAME + 2-char GIVEN NAME.
 
 CATEGORY: ${categoryGuides[req.sourceCategory]}
-${req.gender ? `GENDER: ${req.gender === "male" ? "Masculine name — strong, bold, scholarly, or heroic qualities. Choose characters that convey power (力, 刚, 毅), wisdom (智, 哲, 明), or dignity (德, 正, 诚)." : req.gender === "female" ? "Feminine name — graceful, elegant, bright, or gentle qualities. Choose characters that convey beauty (美, 丽, 秀), grace (雅, 婉, 柔), or intelligence (慧, 敏, 淑)." : "Gender-neutral name — balanced qualities suitable for anyone."}` : ""}
+${req.gender ? `GENDER: ${req.gender === "male" ? "Masculine name. Choose characters that evoke strength, ambition, wisdom, dignity, or scholarly depth. The name should feel bold, grounded, and timeless — think of generals, poets, philosophers. Avoid delicate or ornamental characters." : req.gender === "female" ? "Feminine name. Choose characters that evoke grace, intelligence, beauty, or quiet strength. The name should feel elegant, luminous, and refined — think of poets, artists, scholars. Avoid harsh or aggressive characters." : "Gender-neutral name. Choose characters with balanced, universal appeal — neither distinctly masculine nor feminine."}` : ""}
 ${personalization(req)}
 ${baziPrompt ? "BAZI: " + baziPrompt + "\nSupplement WEAK elements." : ""}
 
@@ -378,4 +378,74 @@ function validateAndReturn(
     storyBody: (data.storyBody as string) || "",
     _storyLoading: true,
   } as unknown as NameEntry;
+}
+
+// ============================================================
+// Phase 3: Generate personality analysis (premium content)
+// ============================================================
+
+export async function generatePersonality(
+  nameData: NameEntry,
+  req: GenerateNameRequest
+): Promise<Partial<NameEntry>> {
+  const apiKey = process.env.DEEPSEEK_API_KEY;
+  const baseUrl =
+    process.env.DEEPSEEK_BASE_URL || "https://api.deepseek.com/v1";
+
+  if (!apiKey || apiKey === "your_deepseek_api_key_here") {
+    return {
+      archetype: "The Seeker",
+      archetypeDescription: "A personality drawn to discovery, wisdom, and the quiet pursuit of understanding.",
+      englishNameConnection: "Your English name and Chinese name share a common spirit.",
+      nativePerception: "To Chinese ears, this name sounds cultured, thoughtful, and authentic.",
+      blessing: "May wisdom guide your path and may your name carry you to distant shores.",
+    };
+  }
+
+  const prompt = `You are a Chinese naming master and cultural storyteller. Generate premium personality content for this name.
+
+Full name: ${nameData.fullChars || nameData.chars}
+Given name: ${nameData.givenChars || ""}
+Surname: ${nameData.surname} (${nameData.surnameMeaning})
+Meaning: ${nameData.meaning}
+Source: ${nameData.sourceText} — ${nameData.sourceAttribution}
+Category: ${req.sourceCategory}
+${req.englishName ? `User's English name: "${req.englishName}"` : ""}
+${req.selfWord ? `User describes themselves as: "${req.selfWord}"` : ""}
+
+Return ONLY this JSON with these EXACT fields:
+
+{
+  "archetype": "A compelling 2-4 word title like 'The Wandering Scholar', 'The Mountain Sage', 'The Dragon Dreamer', 'The Celestial Explorer', 'The Silent Strategist'. Make it specific and memorable.",
+  "archetypeDescription": "60-80 words. In Chinese cultural tradition, people with names like this embody certain qualities... Describe the archetype: what kind of person bears this name? What drives them? What do they value? Make the user feel seen and understood. Use vivid, literary language.",
+  "englishNameConnection": ${req.englishName ? `"40-60 words. Draw a meaningful connection between the user's English name '${req.englishName}' and their Chinese name. Find a genuine parallel — not forced. If the English name means 'grace' and the Chinese name means 'cloud sail', connect them through themes of freedom, journey, transcendence."` : `"40-60 words. Even without knowing your English name, comment on how this Chinese name complements any name from the Western tradition through its universal themes."`},
+  "nativePerception": "40-60 words. How would a native Chinese speaker perceive this name? Be honest — does it sound elegant? Literary? Traditional? Modern? Masculine/feminine? Would it belong to a scholar, artist, leader, adventurer? Mention specific associations. Include both positive and nuanced observations.",
+  "blessing": "50-80 words. A traditional Chinese-style blessing inspired by the name's meaning. Use poetic, warm language. Echo the name's imagery. Should feel like something an elder or calligrapher would write. Include natural imagery and timeless wisdom. End with a resonant line."
+}
+
+CRITICAL RULES:
+- Every section must reference the SPECIFIC name and its meaning. No generic filler.
+- Use Western cultural bridges where helpful.
+- Write with warmth and authority — like a cultural ambassador.
+- Make the user feel this was crafted uniquely for them.`;
+
+  try {
+    const result = await callDeepSeek(prompt, apiKey, baseUrl, 1500);
+    return {
+      archetype: (result.archetype as string) || "",
+      archetypeDescription: (result.archetypeDescription as string) || "",
+      englishNameConnection: (result.englishNameConnection as string) || "",
+      nativePerception: (result.nativePerception as string) || "",
+      blessing: (result.blessing as string) || "",
+    };
+  } catch (error) {
+    console.error("generatePersonality failed:", error);
+    return {
+      archetype: "The Seeker",
+      archetypeDescription: "A personality drawn to discovery, wisdom, and the quiet pursuit of understanding — much like the scholars and poets of ancient China who found meaning in every mountain and stream.",
+      englishNameConnection: "Names across cultures carry the same fundamental hope — that we grow into the best version of ourselves.",
+      nativePerception: "To Chinese ears, this name sounds cultured and thoughtful, carrying the weight of centuries of literary tradition.",
+      blessing: "May wisdom guide your path. May your name carry you to distant shores, and may you always find your way home.",
+    };
+  }
 }
