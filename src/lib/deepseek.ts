@@ -122,135 +122,133 @@ Return ONLY this JSON:
 // ============================================================
 
 const storyPrompts: Record<string, string> = {
+  // ── POETRY: Literary analysis of classical poems ──
   poetry: `You are a literary scholar explaining classical Chinese poetry to a Western audience.
 
-Write a rich, detailed "What it means" analysis AND a "Full Story" for this name inspired by classical poetry.
+This name is drawn from: "{sourceText}" — by {sourceAttribution}.
 
-The user's name comes from this source line: "{sourceText}" by {sourceAttribution}.
+WHAT IT MEANS — write 150-200 words covering:
+1. Translate the source line phrase-by-phrase for a reader who knows zero Chinese. What does each character/image mean literally?
+2. What poetic device is at work? (metaphor, juxtaposition, allusion, parallelism, personification?) How does the device create meaning?
+3. The poet's emotional state when writing — were they exiled? drunk with friends? mourning? celebrating? What specific biographical detail makes this line hit harder?
+4. Why THESE characters were extracted for this name — what quality do they bestow on the bearer?
+5. A precise Western parallel — name a specific Shakespeare sonnet, Keats ode, or Sappho fragment that works the same way. Not "like Romantic poetry" — name the exact work.
 
-WHAT IT MEANS — write 120-180 words covering:
-1. The literal meaning of the poem line(s) — translate each phrase for a Western reader
-2. The poetic devices used (metaphor, imagery, parallelism) and what they convey
-3. The emotional core of the poem — what the poet was feeling (homesickness, longing, joy, despair, ambition)
-4. Why these specific characters were chosen for THIS name — what quality do they bestow?
-5. A Western cultural parallel (Shakespeare sonnet, Greek lyric, Romantic poetry, etc.)
+USER BRIDGE — one vivid, personal sentence. "If this name speaks to you, you are someone who..."
 
-USER BRIDGE — one vivid, personal sentence connecting the name's essence to the user's identity. "If this name speaks to you, you are someone who..."
+FULL STORY — write 300-400 words as a rich narrative:
+1. SET THE SCENE: Where is the poet? What year? What dynasty? What does the landscape look like? The weather? The time of day? Paint the picture.
+2. THE POET'S LIFE: What was happening in their life at this exact moment — their age, career, political situation, personal relationships. Give specific biographical details, not generalizations.
+3. HISTORICAL BACKDROP: What was China like then? War? Peace? Cultural flowering? Decline? Connect the poem to its historical moment.
+4. THE POEM'S JOURNEY: How was it received? Who preserved it? Which emperors quoted it? How did it survive 1000+ years to reach us?
+5. WHY IT STILL MATTERS: What does this poem say to a person in 2024? What universal human experience does it capture that transcends time and culture?
+End with the poem's most powerful line as a closing quote.`,
 
-FULL STORY — write 200-300 words as a podcast narrative covering:
-1. The poet's life at the time of writing — age, circumstances, political situation, personal struggles
-2. Where and when was it written? What was happening in China at that time?
-3. The poem's journey through history — how it was received, why it endured, who quoted it
-4. What this poem means to Chinese people TODAY — why every schoolchild knows it
-5. How these characters capture something universal about the human experience — what can a Western reader take away?
-End with a poetic, memorable closing line.`,
+  // ── ELEMENTS: Wu Xing philosophy, cosmology, metaphysics ──
+  elements: `You are a master of Chinese metaphysics — the Five Elements (Wu Xing 五行), Yin-Yang theory, the I Ching (易经), and traditional Chinese cosmology. You are NOT a poetry scholar.
 
-  elements: `You are a scholar of Chinese metaphysics and philosophy.
+This name is built on Five Elements principles. Source context: {sourceText} from {sourceAttribution}.
 
-Write a rich "What it means" and "Full Story" for this name inspired by the Five Elements (Wu Xing).
+WHAT IT MEANS — write 150-200 words:
+1. Identify which Element(s) these characters embody (Wood 木, Fire 火, Earth 土, Metal 金, Water 水). Explain WHY — what about each character's radical, etymology, or traditional association maps to that element?
+2. The Five Elements are a system of CYCLES. Does this name use the Generating cycle (生: Wood→Fire→Earth→Metal→Water→Wood) or the Controlling cycle (克: Wood→Earth→Water→Fire→Metal→Wood)? What does this combination MEAN for the bearer's destiny?
+3. Each element governs specific organs (Water=Kidney, Fire=Heart, Wood=Liver, Metal=Lung, Earth=Spleen), emotions (Water=Fear, Fire=Joy, Wood=Anger, Metal=Grief, Earth=Worry), seasons, directions, colors, tastes. What does this name's elemental profile say about the bearer's constitutional tendencies?
+4. How would a traditional Chinese doctor or feng shui master interpret this name? What balance or imbalance does it address?
+5. Western parallel: don't just say "Greek humors." Compare specifically — how is Wu Xing's Wood element different from the Sanguine humor? How is it similar to Jung's concept of archetypes or the Myers-Briggs cognitive functions?
 
-Source: {sourceText} from {sourceAttribution}
+USER BRIDGE — "If this name resonates with you, your elemental constitution carries the energy of..."
 
-WHAT IT MEANS — 120-180 words:
-1. Explain the Five Element this name embodies — its qualities, season, direction, organ, emotion
-2. The specific characters chosen — what element does each represent? How do they interact?
-3. The philosophical principle behind this combination (generating cycle? controlling cycle?)
-4. How this name would balance or enhance the bearer's elemental constitution
-5. A Western parallel — think Greek humors, Jungian archetypes, or Ayurvedic doshas
+FULL STORY — write 300-400 words:
+1. ORIGINS: Wu Xing theory didn't start as philosophy. It began with practical observation — farmers watching seasons cycle, doctors mapping organs to elements, generals applying it to strategy. Trace how it emerged from the Warring States period through texts like 尚书·洪范 and 黄帝内经.
+2. THE ELEMENT'S PERSONALITY: Give the specific element(s) in this name a PERSONALITY. If Water were a person, what would they be like? What would Wood value? Make the element come alive as a character.
+3. COSMIC APPLICATION: How does Wu Xing explain EVERYTHING in traditional Chinese thought? Dynastic cycles (each dynasty ruled by an element), music (五音 five tones), food (五味 five flavors), even time itself (五季 five seasons). Show the reader how vast this system is.
+4. LIVING TRADITION: Wu Xing is not dead history. Walk into any Chinese medicine clinic and the doctor checks your elemental balance. Walk into a feng shui consultation and the master reads the elements of your space. Modern martial artists still train according to elemental principles. Give concrete examples.
+5. WHAT YOUR NAME MEANS: Return to the name. What does it mean to bear an elemental name in the 21st century? How does this ancient wisdom apply to modern life?`,
 
-USER BRIDGE — one sentence: "If this name resonates with you, your character carries the energy of..."
+  // ── NATURE: Astronomy, geography, feng shui, natural science ──
+  nature: `You are a scholar of Chinese astronomy, geography, feng shui (风水), and natural philosophy. You are NOT a poetry analyst. You do not talk about "landscape poetry" — you talk about actual stars, mountains, rivers, weather patterns, and how ancient Chinese understood the physical universe.
 
-FULL STORY — 200-300 words:
-1. Origins of Wu Xing theory in Chinese civilization — from 尚书 to traditional medicine
-2. How the Chinese have used elemental naming for thousands of years — imperial names, scholarly names
-3. The specific element's role in Chinese cosmology — what did ancient philosophers say about it?
-4. Modern relevance — how these concepts still influence Chinese medicine, feng shui, martial arts
-5. What it means to bear an elemental name today — a closing reflection`,
+This name draws from the natural world. Source context: {sourceText} from {sourceAttribution}.
 
-  nature: `You are a scholar of Chinese landscape poetry and natural philosophy.
+WHAT IT MEANS — write 150-200 words:
+1. Identify the SPECIFIC natural phenomenon: if it's a star — which one? (北斗? 紫微? 二十八宿?) If it's a mountain — which one? (五岳: 泰山, 华山, 衡山, 恒山, 嵩山?) If it's water — which river or sea? Be specific, not generic.
+2. What is the SCIENTIFIC or GEOGRAPHICAL reality behind this name? If the name means "Ocean," talk about how ancient Chinese viewed the Eastern Sea (东海) — not as poetic metaphor but as a real geographical entity with trade routes, naval history, and mythological significance.
+3. In Chinese cosmology, nature is not separate from humanity — it's a single living system (天人合一). How does this specific natural element fit into that worldview?
+4. Feng shui (风水) connection: what does this natural element mean in terms of qi flow, site selection, or spatial harmony? If the name evokes mountains, talk about 靠山 (backing mountain). If water, talk about 水为财 (water as wealth).
+5. Western parallel: compare to a specific concept from Western science or philosophy — not poetry. Think: the Ancient Greek understanding of the four elements, Native American land philosophy, or modern ecology.
 
-Write a rich "What it means" and "Full Story" for this nature-inspired name.
+USER BRIDGE — "If this name calls to you, you are connected to the natural force of..."
 
-Source: {sourceText} from {sourceAttribution}
+FULL STORY — write 300-400 words:
+1. THE PHYSICAL REALITY: Describe the actual natural feature. If it's a mountain — its height, location, geological formation, what grows on it, who lives near it. If it's a star — its astronomical properties, when it's visible, its place in the Chinese constellation system (not Western constellations — use 二十八宿). If it's a river — its length, source, cities along it, floods and droughts in its history.
+2. CULTURAL GEOGRAPHY: How has this natural feature shaped Chinese civilization? Did armies fight over this mountain pass? Did poets pilgrimage to this peak? Did this river create or destroy dynasties? Give specific historical events.
+3. FENG SHUI & CHINESE SCIENCE: How did Chinese astronomers map this star? How did geographers document this mountain? What did feng shui masters say about its qi? This is about observation and knowledge, not poetry.
+4. SACRED GEOGRAPHY: In Chinese tradition, nature is alive. Mountains are dragons sleeping. Rivers are the earth's blood. Stars are celestial officials. Explain the ANIMIST or DAOIST understanding of this natural entity. How do people still worship or honor it today?
+5. THE MODERN CONNECTION: This mountain still stands. This star still shines. This river still flows. What does it mean to carry a name from the natural world in an age of climate crisis, urbanization, and digital life?`,
 
-WHAT IT MEANS — 120-180 words:
-1. The natural phenomenon or landscape feature this name references
-2. Its symbolic meaning in Chinese culture — what does a mountain/river/star/season represent?
-3. How the specific characters capture the essence of this natural element
-4. The Daoist/Buddhist/Confucian perspective on humans and nature reflected here
-5. A Western parallel — Romantic poetry, Transcendentalism, or nature writing
+  // ── MYTHOLOGY: Epic storytelling, complete myths ──
+  mythology: `You are a master storyteller of Chinese mythology and folklore. Your job is to TELL A STORY — not analyze it dryly. You are a bard, a griot, a fireside narrator. Make the reader's eyes go wide.
 
-USER BRIDGE — one sentence connecting nature to character.
+This name draws from Chinese mythology. Source: {sourceText} from {sourceAttribution}.
 
-FULL STORY — 200-300 words:
-1. The specific landscape or natural feature in Chinese geography/history
-2. Famous poets or philosophers who wrote about it
-3. Its role in Chinese art — landscape painting (山水画), poetry, garden design
-4. The philosophical meaning — what does nature teach us according to Chinese thought?
-5. Why this natural name matters in our urban, digital age`,
+WHAT IT MEANS — write 150-200 words:
+1. Identify the SPECIFIC myth or legendary figure. Is it from 山海经 (Classic of Mountains and Seas)? 庄子 (Zhuangzi)? 楚辞 (Songs of Chu)? 西游记 (Journey to the West)? 封神演义? Be exact about which text and which chapter or section.
+2. What creature, god, immortal, or hero does this name reference? Name them specifically. The Kun-Peng (鲲鹏). The Dragon Kings (龙王). The Queen Mother of the West (西王母). Hou Yi the Archer (后羿). Nüwa (女娲). Don't be vague — name the specific myth.
+3. What powers or qualities does this being embody? What makes them awesome, terrifying, tragic, or inspiring? What can they do that mortals cannot?
+4. Why were THESE characters chosen for this name? What quality of the mythical being transfers to the name-bearer?
+5. A Western parallel: name a specific Greek, Norse, Egyptian, or Celtic myth that carries similar themes. Compare Zeus to the Jade Emperor, not just "like Greek myths."
 
-  mythology: `You are a scholar of Chinese mythology and folklore.
+USER BRIDGE — "If this name chooses you, you carry the spirit of..."
 
-Write a rich "What it means" and "Full Story" for this myth-inspired name.
+FULL STORY — write 300-400 words as an EPIC NARRATIVE:
+1. THE ORIGIN: Tell the myth from the beginning. Set the cosmic stage. Was this before heaven and earth separated? During the reign of which legendary emperor? In what fantastical realm? Use vivid sensory detail — colors, sounds, scale.
+2. THE STORY UNFOLDS: What happened? Tell the full dramatic arc. Was there a battle? A transformation? A sacrifice? A trick? A love story? A tragedy? Describe the key moments with cinematic intensity. Show, don't tell.
+3. THE CAST OF CHARACTERS: Who else appears? What gods, demons, sages, or mortals play a role? Give them personality. Make the reader care about them.
+4. THE DEEPER MEANING: Every Chinese myth carries philosophical weight. What is this myth really about? The relationship between humans and nature? The danger of hubris? The value of perseverance? The cycle of destruction and creation? The tension between order and chaos?
+5. THE MYTH TODAY: How does this story live on? Is there a festival celebrating it? A temple dedicated to its hero? A video game or film adaptation? An idiom that every Chinese person knows that comes from this myth?
+End with the myth's most memorable image or line.`,
 
-Source: {sourceText} from {sourceAttribution}
+  // ── HISTORY: Intrigue, drama, lessons from the past ──
+  history: `You are a historian and storyteller specializing in the drama, intrigue, and human truth of Chinese history. You are NOT a dry academic — you are a narrator who makes history feel like a HBO series. The past is full of secrets, betrayals, triumphs, and warnings.
 
-WHAT IT MEANS — 120-180 words:
-1. The mythical creature, deity, or legendary figure this name references
-2. Its origin story — which text first mentions it? (山海经, 庄子, 楚辞, etc.)
-3. What powers, qualities, or virtues does it embody?
-4. How the characters capture this mythical essence
-5. A Western parallel — Greek/Roman/Norse myth equivalent
+This name is drawn from Chinese history. Source: {sourceText} from {sourceAttribution}.
 
-USER BRIDGE — one sentence connecting myth to identity.
+WHAT IT MEANS — write 150-200 words:
+1. Name the specific historical figure. Dynasty? Years alive? What did they DO? General? Emperor? Poet-official? Philosopher? Rebel? Strategist? Be specific.
+2. What is this person's MOST DEFINING MOMENT? The battle they won against impossible odds? The poem they wrote before execution? The political gamble that changed a dynasty? The betrayal that broke them? Focus on the drama.
+3. What CHARACTER TRAIT defined this person? Were they brilliantly strategic but personally ruthless? Loyal to a fault? Visionary but naive? Cunning? Righteous? Ambitious to the point of self-destruction?
+4. Why were these specific characters extracted for this name? What quality of this historical figure does the name-bearer inherit?
+5. A precise Western parallel: compare to a specific figure — not "like Caesar" but "like when Caesar crossed the Rubicon, knowing it meant civil war." Or "like Churchill in 1940." Or "like Socrates choosing the hemlock."
 
-FULL STORY — 200-300 words:
-1. The full origin myth — tell the story dramatically, with vivid imagery
-2. Variations of the myth across different regions/dynasties
-3. How this myth shaped Chinese culture — art, literature, idioms, festivals
-4. Modern cultural presence — films, games, novels that reference this myth
-5. The universal theme — what human truth does this myth express?`,
+USER BRIDGE — "If this name resonates with you, you carry the legacy of..."
 
-  history: `You are a historian specializing in Chinese civilization.
+FULL STORY — write 300-400 words:
+1. THE WORLD THEY LIVED IN: Set the historical scene. What dynasty? What was the political situation? Was China unified or divided? At war or at peace? Prosperous or crumbling? What did ordinary life look like? Give the reader the FEEL of the era.
+2. THE DRAMA: Tell the key event or episode that defines this person. The palace intrigue. The battlefield decision. The philosophical debate. The act of defiance. The tragic mistake. Make it cinematic — dialogue, tension, stakes, consequence.
+3. THE HUMAN BEHIND THE LEGEND: What did this person fear? Love? Regret? What kept them awake at night? What did they sacrifice? Chinese history often sanitizes its figures — give us the complicated, messy, real human being.
+4. THE LESSON: What does this person's story teach us? Is it a warning about the corruption of power? An inspiration about perseverance? A caution about loyalty misplaced? A reminder that even the mighty fall? Be explicit about the moral.
+5. THE ECHO: How is this person remembered today? A temple? A tomb? A proverb? A film? A political reference? How does their legacy shape modern Chinese identity?
+End with a powerful, memorable line — their own words if they left any, or a historian's verdict on their life.`,
 
-Write a rich "What it means" and "Full Story" for this historically-inspired name.
-
-Source: {sourceText} from {sourceAttribution}
-
-WHAT IT MEANS — 120-180 words:
-1. The historical figure — who were they? Which dynasty? What did they achieve?
-2. Their 字 (courtesy name) or 号 (art name) — the tradition of multiple names in Chinese culture
-3. The specific characters chosen — how they reflect the figure's character or legacy
-4. Why this historical figure matters — their contribution to Chinese civilization
-5. A Western parallel — comparable Western historical figure
-
-USER BRIDGE — one sentence linking history to personal identity.
-
-FULL STORY — 200-300 words:
-1. The historical context — what was China like during this person's lifetime?
-2. Key moments in their life — decisive battles, famous writings, political intrigues
-3. Their legacy — how are they remembered? Temples, festivals, idioms, school textbooks?
-4. Controversies or debates — what do modern historians argue about?
-5. What their life teaches us today — the timeless lesson`,
-
+  // ── FALLBACK: General cultural analysis ──
   fallback: `You are a Chinese cultural scholar writing for Western readers.
 
-Write a rich "What it means" and "Full Story" for this name: {chars} ({meaning}).
+Write a rich "What it means" and "Full Story" for this name: {fullChars} ({meaning}). Each character: {char1} = {char1Meaning}, {char2} = {char2Meaning}.
 
-WHAT IT MEANS — 120-180 words:
-1. The cultural resonance of these characters — what do they evoke in Chinese tradition?
-2. Character-by-character analysis — the layered meanings of each
-3. How Chinese names carry aspirations — what a parent hopes for their child
-4. A Western parallel that helps a non-Chinese reader understand
+WHAT IT MEANS — 150-200 words:
+1. Character-by-character deep analysis — what does each character mean in its FULL cultural context, not just dictionary definition?
+2. How these characters interact — why were they paired together? What combined meaning emerges?
+3. The cultural resonance — what does this name evoke in Chinese tradition? What aspirations does it carry?
+4. A precise Western parallel to help a non-Chinese reader feel the weight of this name.
 
-USER BRIDGE — one vivid sentence.
+USER BRIDGE — one vivid, personal sentence.
 
-FULL STORY — 200-300 words:
-1. The broader cultural context these characters inhabit
-2. Historical usage — who else bore similar names? What did they achieve?
-3. The name in literature, art, or philosophy
-4. What these characters mean in modern China
-5. A closing reflection on why names matter across cultures`,
+FULL STORY — 300-400 words:
+1. The broader cultural world these characters inhabit — what traditions, philosophies, or historical moments do they connect to?
+2. Who else in Chinese history bore similar names and what did they achieve?
+3. The name in Chinese art, literature, or philosophy — where does it appear?
+4. What these characters mean in modern China — how are they used today?
+5. A closing reflection on why names carry the weight of civilization.`,
 };
 
 export async function generateStory(
@@ -323,7 +321,7 @@ Return ONLY this JSON:
 }`;
 
   try {
-    const result = await callDeepSeek(prompt, apiKey, baseUrl, 2500);
+    const result = await callDeepSeek(prompt, apiKey, baseUrl, 4000);
     return {
       explanation: (result.explanation as string) || "",
       userBridge: (result.userBridge as string) || "",
