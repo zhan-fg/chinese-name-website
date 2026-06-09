@@ -524,6 +524,8 @@ export default function Home() {
         <nav className="flex justify-center gap-3 flex-wrap mb-3">
           <a href="/how-it-works" className="text-[11px] text-mist hover:text-text-secondary transition-colors">How It Works</a>
           <span className="text-mist/40 text-[11px]">&middot;</span>
+          <a href="/how-chinese-names-work" className="text-[11px] text-mist hover:text-text-secondary transition-colors">Guide</a>
+          <span className="text-mist/40 text-[11px]">&middot;</span>
           <a href="/about" className="text-[11px] text-mist hover:text-text-secondary transition-colors">About</a>
           <span className="text-mist/40 text-[11px]">&middot;</span>
           <a href="/contact" className="text-[11px] text-mist hover:text-text-secondary transition-colors">Contact</a>

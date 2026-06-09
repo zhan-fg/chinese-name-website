@@ -30,8 +30,8 @@ export const viewport: Viewport = {
 export const metadata: Metadata = {
   metadataBase: new URL(SITE_URL),
   title: {
-    default: `${SITE_NAME} — ${TAGLINE}`,
-    template: `%s | ${SITE_NAME}`,
+    default: `Chinese Name Generator — ${SITE_NAME} | Poetry, Bazi & History`,
+    template: `%s | ${SITE_NAME} — Chinese Name Generator`,
   },
   description:
     "Discover a Chinese name that's uniquely yours. AI-generated from classical poetry, Five Elements Bazi destiny analysis (八字命理), mythology, and history — each name comes with its full cultural story, pronunciation guide, and share card.",

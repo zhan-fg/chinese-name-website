@@ -3,13 +3,14 @@
  * Renders a WebApplication schema with FAQ sections.
  */
 export default function StructuredData() {
+  const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || "https://newchinesename.com";
   const jsonLd = {
     "@context": "https://schema.org",
     "@type": "WebApplication",
     name: "Shan Shui — Chinese Name Generator",
     description:
       "AI-powered Chinese name generator. Discover a personalized Chinese name from classical poetry, Five Elements philosophy (Bazi destiny analysis), mythology, and history. Each name comes with pronunciation guide and full cultural story.",
-    url: "https://chinese-name-website.vercel.app",
+    url: siteUrl,
     applicationCategory: "LifestyleApplication",
     operatingSystem: "All",
     offers: {
