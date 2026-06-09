@@ -47,6 +47,7 @@ export default function Home() {
   const [showPaywall, setShowPaywall] = useState(false);
   const [creditRefresh, setCreditRefresh] = useState(0);
   const [captureStatus, setCaptureStatus] = useState<string | null>(null);
+  const [gender, setGender] = useState<"male" | "female" | "neutral">("neutral");
 
   // Track generated fullChars for dedup
   const [generatedNames, setGeneratedNames] = useState<string[]>([]);
@@ -214,10 +215,12 @@ export default function Home() {
   const handleUserInfoSubmit = (
     name: string,
     word: string,
+    gender?: "male" | "female" | "neutral",
     birth?: { year: number; month: number; day: number; hour: number; minute: number; location: string }
   ) => {
     setEnglishName(name);
     setSelfWord(word);
+    setGender(gender || "neutral");
     if (birth) setBirthData(birth);
     goToStep("surname");
   };
@@ -276,6 +279,7 @@ export default function Home() {
           englishName: name || undefined,
           selfWord: word || undefined,
           surname: s || undefined,
+          gender: gender !== "neutral" ? gender : undefined,
           birthYear: birthData?.year,
           birthMonth: birthData?.month,
           birthDay: birthData?.day,

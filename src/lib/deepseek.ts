@@ -81,6 +81,7 @@ export async function generateName(
   const prompt = `Chinese name scholar. Generate a SURNAME + 2-char GIVEN NAME.
 
 CATEGORY: ${categoryGuides[req.sourceCategory]}
+${req.gender ? `GENDER: ${req.gender === "male" ? "Masculine name — strong, bold, scholarly, or heroic qualities. Choose characters that convey power (力, 刚, 毅), wisdom (智, 哲, 明), or dignity (德, 正, 诚)." : req.gender === "female" ? "Feminine name — graceful, elegant, bright, or gentle qualities. Choose characters that convey beauty (美, 丽, 秀), grace (雅, 婉, 柔), or intelligence (慧, 敏, 淑)." : "Gender-neutral name — balanced qualities suitable for anyone."}` : ""}
 ${personalization(req)}
 ${baziPrompt ? "BAZI: " + baziPrompt + "\nSupplement WEAK elements." : ""}
 
@@ -278,15 +279,23 @@ export async function generateStory(
   template = template
     .replace(/{sourceText}/g, nameData.sourceText || "")
     .replace(/{sourceAttribution}/g, nameData.sourceAttribution || "")
+    .replace(/{fullChars}/g, nameData.fullChars || nameData.chars || "")
+    .replace(/{givenChars}/g, nameData.givenChars || "")
     .replace(/{chars}/g, nameData.chars || "")
     .replace(/{meaning}/g, nameData.meaning || "")
     .replace(/{surname}/g, nameData.surname || "")
-    .replace(/{surnameMeaning}/g, nameData.surnameMeaning || "");
+    .replace(/{surnameMeaning}/g, nameData.surnameMeaning || "")
+    .replace(/{char1}/g, (nameData as any).char1 || "")
+    .replace(/{char2}/g, (nameData as any).char2 || "")
+    .replace(/{char1Meaning}/g, (nameData as any).char1Meaning || "")
+    .replace(/{char2Meaning}/g, (nameData as any).char2Meaning || "");
 
   const prompt = `Chinese cultural scholar writing for a Western audience.
 
-Name: ${nameData.chars} (${nameData.meaning})
+Full name: ${nameData.fullChars || nameData.chars}
+Given name: ${nameData.givenChars || ""} (char1: ${(nameData as any).char1 || ""} = ${(nameData as any).char1Meaning || ""}, char2: ${(nameData as any).char2 || ""} = ${(nameData as any).char2Meaning || ""})
 Surname: ${nameData.surname} (${nameData.surnameMeaning})
+Meaning: ${nameData.meaning}
 Source text: ${nameData.sourceText}
 Attribution: ${nameData.sourceAttribution}
 Category: ${req.sourceCategory}
@@ -295,17 +304,19 @@ ${baziPrompt ? "BAZI context: " + baziPrompt : ""}
 
 ${template}
 
-IMPORTANT WRITING GUIDELINES:
-- Write as if narrating a documentary or podcast — engaging, warm, authoritative
+CRITICAL RULES:
+- You MUST explain ALL given name characters (${nameData.givenChars || ""}) individually. Do not skip any character.
+- The full name is "${nameData.fullChars || nameData.chars}" — surname "${nameData.surname}" + given name "${nameData.givenChars || ""}". Reference the complete name.
+- Write as if narrating a documentary or podcast — engaging, warm, authoritative.
 - Use vivid imagery and emotional language. Make the reader FEEL the story.
 - Assume the reader knows NOTHING about Chinese culture — explain everything clearly.
-- Use Western cultural references as bridges (Shakespeare, Greek myths, Tolkien, etc.)
+- Use Western cultural references as bridges (Shakespeare, Greek myths, Tolkien, etc.).
 - Never be generic or vague. Every sentence should add new information.
 - End with a memorable, resonant closing line.
 
 Return ONLY this JSON:
 {
-  "explanation": "120-180 words. What this name means on multiple levels: literal, poetic, philosophical, personal.",
+  "explanation": "120-180 words covering ALL characters. What this name means on multiple levels: literal, poetic, philosophical, personal. Explain EACH given character individually.",
   "userBridge": "One vivid sentence connecting this name's essence to the user's identity or character.",
   "storyTitle": "A compelling, specific title (max 8 words) that captures the essence of the story.",
   "storyBody": "200-300 words. A rich narrative: origins, historical context, cultural significance, modern relevance. Tell a STORY, not just facts."

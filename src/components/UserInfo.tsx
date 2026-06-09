@@ -20,6 +20,7 @@ interface Props {
   onSubmit: (
     englishName: string,
     selfWord: string,
+    gender?: "male" | "female" | "neutral",
     birth?: { year: number; month: number; day: number; hour: number; minute: number; location: string }
   ) => void;
 }
@@ -27,6 +28,7 @@ interface Props {
 export default function UserInfo({ visible, category, onSkip, onSubmit }: Props) {
   const [englishName, setEnglishName] = useState("");
   const [selfWord, setSelfWord] = useState("");
+  const [gender, setGender] = useState<"male" | "female" | "neutral">("neutral");
   const [birth, setBirth] = useState<BirthFields>({
     year: "",
     month: "",
@@ -52,7 +54,7 @@ export default function UserInfo({ visible, category, onSkip, onSubmit }: Props)
           }
         : undefined;
 
-    onSubmit(englishName.trim(), selfWord.trim(), birthData);
+    onSubmit(englishName.trim(), selfWord.trim(), gender, birthData);
   };
 
   const updateBirth = (field: keyof BirthFields, value: string) => {
@@ -115,6 +117,29 @@ export default function UserInfo({ visible, category, onSkip, onSubmit }: Props)
                   className="w-full px-3.5 py-2.5 text-sm rounded-lg border border-card-border bg-surface text-text-primary placeholder:text-mist focus:outline-none focus:border-deep-blue focus:ring-1 focus:ring-deep-blue/20 transition-colors"
                   maxLength={30}
                 />
+              </div>
+
+              {/* Gender */}
+              <div>
+                <label className="block text-xs font-medium text-text-secondary mb-1.5">
+                  Gender
+                </label>
+                <div className="flex gap-2">
+                  {(["male", "female", "neutral"] as const).map((g) => (
+                    <button
+                      key={g}
+                      type="button"
+                      onClick={() => setGender(g)}
+                      className={`flex-1 py-2 rounded-lg text-sm transition-colors ${
+                        gender === g
+                          ? "bg-deep-blue text-white"
+                          : "border border-card-border text-text-secondary hover:bg-gray-50"
+                      }`}
+                    >
+                      {g === "male" ? "♂ Male" : g === "female" ? "♀ Female" : "Any"}
+                    </button>
+                  ))}
+                </div>
               </div>
 
               {/* Birth data — only for Five Elements */}

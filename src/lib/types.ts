@@ -10,6 +10,7 @@ export interface GenerateNameRequest {
   englishName?: string;
   selfWord?: string;
   surname?: string;
+  gender?: "male" | "female" | "neutral";
   // Birth data for Bazi (Five Elements) calculation
   birthYear?: number;
   birthMonth?: number;
