@@ -22,9 +22,9 @@ export async function POST(request: NextRequest) {
     } else {
       const text = await request.text();
       const params = new URLSearchParams(text);
-      for (const [key, value] of params) {
+      params.forEach((value, key) => {
         body[key] = value;
-      }
+      });
     }
 
     const saleId = body.sale_id;
