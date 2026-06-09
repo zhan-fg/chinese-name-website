@@ -305,19 +305,22 @@ ${template}
 CRITICAL RULES:
 - You MUST explain ALL given name characters (${nameData.givenChars || ""}) individually. Do not skip any character.
 - The full name is "${nameData.fullChars || nameData.chars}" — surname "${nameData.surname}" + given name "${nameData.givenChars || ""}". Reference the complete name.
-- Write as if narrating a documentary or podcast — engaging, warm, authoritative.
-- Use vivid imagery and emotional language. Make the reader FEEL the story.
-- Assume the reader knows NOTHING about Chinese culture — explain everything clearly.
-- Use Western cultural references as bridges (Shakespeare, Greek myths, Tolkien, etc.).
-- Never be generic or vague. Every sentence should add new information.
+- You are an identity designer, not an academic. Your goal: make the user feel "I discovered another version of myself that could have existed in ancient China."
+- Write cinematically — place the user INSIDE a scene, not outside looking at one.
+- Use vivid sensory detail. Make the reader feel temperature, see colors, hear sounds.
+- Every paragraph should answer: "What does this mean for ME, the person bearing this name?"
+- Connect Chinese culture to human psychology and universal archetypes.
+- Never explain "what China is." Instead, explain "what this name means for THIS person."
+- Western references: use them as identity bridges, not academic footnotes. "This is the Chinese equivalent of the part of you that..."
 - End with a memorable, resonant closing line.
 
 Return ONLY this JSON:
 {
-  "explanation": "120-180 words covering ALL characters. What this name means on multiple levels: literal, poetic, philosophical, personal. Explain EACH given character individually.",
+  "explanation": "150-200 words covering ALL characters. What this name means on multiple levels: literal, poetic, philosophical, personal. Explain EACH given character individually.",
   "userBridge": "One vivid sentence connecting this name's essence to the user's identity or character.",
   "storyTitle": "A compelling, specific title (max 8 words) that captures the essence of the story.",
-  "storyBody": "200-300 words. A rich narrative: origins, historical context, cultural significance, modern relevance. Tell a STORY, not just facts."
+  "storyBody": "300-400 words. Cinematic narrative: place the user in a symbolic ancient Chinese scene. The name appears naturally in the story. Must feel like destiny. Emotionally immersive, not informational.",
+  "socialSummary": "40-60 words. A ready-to-share summary in first person: 'My Chinese name is {fullChars}, meaning {meaning}. It reflects my archetype. Inspired by Chinese {category}. It feels like...' Make it personal and shareable."
 }`;
 
   try {
@@ -327,6 +330,7 @@ Return ONLY this JSON:
       userBridge: (result.userBridge as string) || "",
       storyTitle: (result.storyTitle as string) || "",
       storyBody: (result.storyBody as string) || "",
+      socialSummary: (result.socialSummary as string) || "",
     };
   } catch (error) {
     console.error("generateStory failed:", error);
