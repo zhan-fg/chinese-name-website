@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { generateStory } from "@/lib/deepseek";
 
-export const maxDuration = 30;
+export const maxDuration = 60;
 
 /**
  * POST /api/generate-story

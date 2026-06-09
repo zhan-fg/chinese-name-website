@@ -3,7 +3,7 @@ import { generateName } from "@/lib/deepseek";
 import { calculateBazi, formatBaziForPrompt } from "@/lib/bazi";
 import { deductUse } from "@/lib/credits";
 
-export const maxDuration = 30;
+export const maxDuration = 60;
 
 export async function POST(request: NextRequest) {
   try {
