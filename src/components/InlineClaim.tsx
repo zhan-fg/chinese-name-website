@@ -2,9 +2,11 @@
 
 import { useState, useEffect, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
+import type { NameEntry } from "@/lib/types";
 
 interface Props {
   nameId: string;
+  nameData?: Partial<NameEntry>;
   onSuccess: () => void;
   onClose: () => void;
 }
@@ -16,7 +18,7 @@ interface Props {
  * When verified, auto-claims without asking for email.
  * If polling times out, falls back to manual email input.
  */
-export default function InlineClaim({ nameId, onSuccess, onClose }: Props) {
+export default function InlineClaim({ nameId, nameData, onSuccess, onClose }: Props) {
   const [phase, setPhase] = useState<"polling" | "manual" | "claiming" | "done">("polling");
   const [email, setEmail] = useState("");
   const [error, setError] = useState("");
@@ -95,6 +97,19 @@ export default function InlineClaim({ nameId, onSuccess, onClose }: Props) {
           localStorage.removeItem("shan-pending-unlock");
           localStorage.removeItem("shan-claim-token");
         } catch {}
+
+        // Save the full report to Supabase for cross-device recovery
+        if (nameData && userEmail) {
+          fetch("/api/save-report", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              email: userEmail,
+              nameId,
+              nameData,
+            }),
+          }).catch(() => {});
+        }
 
         setPhase("done");
         setTimeout(onSuccess, 500);
