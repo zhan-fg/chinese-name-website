@@ -1,75 +1,145 @@
 import type { Metadata } from "next";
+import type { NameEntry } from "@/lib/types";
 
 interface Props {
-  searchParams: Promise<{ n?: string; m?: string; c?: string }>;
+  searchParams: Promise<{ id?: string }>;
 }
 
 export const metadata: Metadata = {
   title: "A Chinese Name — Shan Shui",
-  description:
-    "Discover the story behind this Chinese name, and find your own rooted in 3,000 years of poetry and legend.",
+  description: "Discover the full story behind this Chinese name, rooted in 3,000 years of poetry and legend.",
 };
 
-const sourceLabels: Record<string, string> = {
-  poetry: "Classical Chinese Poetry",
-  elements: "Five Elements Philosophy",
-  nature: "Astronomy & Geography",
-  mythology: "Chinese Mythology",
-  history: "Historical Legends",
-};
+async function fetchReport(nameId: string): Promise<NameEntry | null> {
+  try {
+    const base = process.env.NEXT_PUBLIC_SITE_URL || "https://newchinesename.com";
+    const res = await fetch(`${base}/api/public-report?nameId=${encodeURIComponent(nameId)}`, {
+      cache: "no-store",
+    });
+    if (!res.ok) return null;
+    const data = await res.json();
+    return data.report || null;
+  } catch {
+    return null;
+  }
+}
+
+function displayName(report: NameEntry): string {
+  return report.fullChars || report.chars || "";
+}
 
 export default async function SharePage({ searchParams }: Props) {
   const params = await searchParams;
-  const name = params.n || "";
-  const meaning = params.m || "";
-  const category = params.c || "";
+  const nameId = params.id || "";
+  const report = nameId ? await fetchReport(nameId) : null;
 
-  if (!name) {
+  if (!report) {
     return (
-      <main className="min-h-screen bg-[#0A1628] flex items-center justify-center">
-        <p className="text-white/50 text-sm">No name provided.</p>
+      <main className="min-h-screen bg-[#F8FAFB] flex items-center justify-center px-4">
+        <div className="text-center">
+          <p className="text-text-secondary text-sm mb-4">This name report is not available.</p>
+          <a href="/" className="text-deep-blue hover:underline text-sm">Discover your own Chinese name →</a>
+        </div>
       </main>
     );
   }
 
-  const sourceLabel = sourceLabels[category] || "Ancient Chinese Tradition";
-
   return (
-    <main className="min-h-screen bg-[#0A1628] flex flex-col items-center justify-center px-6 py-16">
-      {/* Name — large and impactful */}
-      <h1 className="text-6xl sm:text-7xl font-light text-white text-center tracking-wider mb-4">
-        {name}
-      </h1>
-
-      {/* Meaning */}
-      {meaning && (
-        <p className="text-xl sm:text-2xl text-white/70 italic text-center mb-6">
-          &ldquo;{meaning}&rdquo;
-        </p>
-      )}
-
-      {/* Source badge */}
-      <div className="inline-block px-4 py-2 rounded-full border border-white/20 text-white/60 text-sm mb-10">
-        {sourceLabel}
+    <main className="min-h-screen bg-[#F8FAFB]">
+      {/* Hero: Name + Meaning */}
+      <div className="bg-mountain-gradient py-12 px-4 text-center">
+        <h1 className="text-5xl sm:text-6xl font-light text-text-primary tracking-wider mb-2">
+          {displayName(report)}
+        </h1>
+        {report.pinyin && (
+          <p className="text-lg text-text-secondary mb-1">{report.pinyin}</p>
+        )}
+        {report.meaning && (
+          <p className="text-base text-text-secondary italic">&ldquo;{report.meaning}&rdquo;</p>
+        )}
       </div>
 
-      {/* Subtext */}
-      <p className="text-white/40 text-sm text-center max-w-sm mb-10">
-        This name was generated from {sourceLabel.toLowerCase()}, carrying
-        centuries of Chinese cultural tradition in every character.
-      </p>
+      <div className="max-w-lg mx-auto px-4 py-8 space-y-6">
+        {/* Source */}
+        {report.sourceText && (
+          <div className="card p-5">
+            <h2 className="text-xs font-medium text-deep-blue uppercase tracking-wider mb-2">Classical Source</h2>
+            <blockquote className="text-sm text-text-primary leading-relaxed italic mb-1">
+              &ldquo;{report.sourceText}&rdquo;
+            </blockquote>
+            <p className="text-xs text-text-secondary">&mdash; {report.sourceAttribution}</p>
+            {report.sourceTranslation && (
+              <p className="text-sm text-text-secondary mt-2 leading-relaxed">
+                &ldquo;{report.sourceTranslation}&rdquo;
+              </p>
+            )}
+          </div>
+        )}
 
-      {/* CTA */}
-      <a
-        href="/"
-        className="inline-block px-8 py-4 rounded-xl bg-white text-[#0A1628] text-base font-medium hover:bg-white/90 transition-colors text-center"
-      >
-        Discover Your Chinese Name →
-      </a>
+        {/* What it means */}
+        {report.explanation && (
+          <div className="card p-5">
+            <h2 className="text-xs font-medium text-deep-blue uppercase tracking-wider mb-2">What It Means</h2>
+            <p className="text-sm text-text-secondary leading-relaxed">{report.explanation}</p>
+            {report.userBridge && (
+              <p className="text-sm text-text-primary mt-3 italic font-light">{report.userBridge}</p>
+            )}
+          </div>
+        )}
 
-      <p className="text-white/30 text-xs mt-6 text-center">
-        newchinesename.com
-      </p>
+        {/* Archetype */}
+        {report.archetype && (
+          <div className="card p-5">
+            <h2 className="text-xs font-medium text-deep-blue uppercase tracking-wider mb-2">Chinese Archetype</h2>
+            <p className="text-lg font-light text-text-primary mb-1">{report.archetype}</p>
+            {report.archetypeDescription && (
+              <p className="text-sm text-text-secondary leading-relaxed">{report.archetypeDescription}</p>
+            )}
+          </div>
+        )}
+
+        {/* Full Story */}
+        {report.storyBody && (
+          <div className="card p-5">
+            <h2 className="text-xs font-medium text-deep-blue uppercase tracking-wider mb-2">
+              {report.storyTitle || "The Full Story"}
+            </h2>
+            <p className="text-sm text-text-secondary leading-relaxed">{report.storyBody}</p>
+          </div>
+        )}
+
+        {/* Native perception */}
+        {report.nativePerception && (
+          <div className="card p-5">
+            <h2 className="text-xs font-medium text-deep-blue uppercase tracking-wider mb-2">
+              How Chinese Speakers Perceive This Name
+            </h2>
+            <p className="text-sm text-text-secondary leading-relaxed">{report.nativePerception}</p>
+          </div>
+        )}
+
+        {/* Blessing */}
+        {report.blessing && (
+          <div className="card p-5 bg-[#EEF4F8] border-deep-blue/20">
+            <h2 className="text-xs font-medium text-deep-blue uppercase tracking-wider mb-2">A Blessing</h2>
+            <p className="text-sm text-text-primary leading-relaxed italic font-light">{report.blessing}</p>
+          </div>
+        )}
+
+        {/* CTA */}
+        <div className="text-center pt-4 pb-8">
+          <p className="text-sm text-text-secondary mb-4">
+            This name was crafted from Chinese classical tradition — every character rooted in centuries of poetry, philosophy, and history.
+          </p>
+          <a
+            href="/"
+            className="inline-block px-6 py-3 rounded-lg bg-deep-blue text-white text-sm font-medium hover:bg-mid-blue transition-colors"
+          >
+            Discover Your Chinese Name →
+          </a>
+          <p className="text-xs text-mist mt-3">newchinesename.com</p>
+        </div>
+      </div>
     </main>
   );
 }

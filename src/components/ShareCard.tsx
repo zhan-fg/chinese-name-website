@@ -313,13 +313,9 @@ function getPoeticLine(name: NameEntry): string {
  * Build the QR code URL — encodes essential name data for the /share page.
  */
 function buildShareUrl(name: NameEntry): string {
-  const base = "https://newchinesename.com/share";
-  const params = new URLSearchParams();
-  if (name.fullChars) params.set("n", name.fullChars);
-  else if (name.chars) params.set("n", name.chars.replace(/ /g, ""));
-  if (name.meaning) params.set("m", name.meaning);
-  if (name.sourceCategory) params.set("c", name.sourceCategory);
-  return `${base}?${params.toString()}`;
+  // Build nameId: "思远-poetry"
+  const nameId = `${name.fullChars || name.chars?.replace(/ /g, "") || ""}-${name.sourceCategory || ""}`;
+  return `https://newchinesename.com/share?id=${encodeURIComponent(nameId)}`;
 }
 
 /**
