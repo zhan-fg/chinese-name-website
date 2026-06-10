@@ -187,19 +187,23 @@ export default function ShareCard({ name, onClose }: Props) {
     }
 
     // ============================================================
-    // FOOTER
+    // QR CODE — scan to see this name's story
     // ============================================================
-    const hostname =
-      typeof window !== "undefined"
-        ? window.location.hostname
-        : "newchinesename.com";
-    ctx.font = "400 22px 'Inter', sans-serif";
-    ctx.fillStyle = "rgba(255,255,255,0.45)";
-    ctx.fillText(hostname, W / 2, H * 0.945);
+    const shareUrl = buildShareUrl(name);
+    try {
+      const qrImg = await loadQrCode(shareUrl);
+      const qrSize = 130;
+      const qrX = W / 2 - qrSize / 2;
+      const qrY = H * 0.90 - qrSize / 2;
+      ctx.drawImage(qrImg, qrX, qrY, qrSize, qrSize);
+    } catch {
+      // fallback silently — QR is nice-to-have
+    }
 
-    ctx.font = "300 15px 'Inter', sans-serif";
-    ctx.fillStyle = "rgba(255,255,255,0.22)";
-    ctx.fillText("Discover your Chinese name", W / 2, H * 0.965);
+    // Label below QR
+    ctx.font = "400 16px 'Inter', sans-serif";
+    ctx.fillStyle = "rgba(255,255,255,0.3)";
+    ctx.fillText("Scan to see this name\u2019s story", W / 2, H * 0.975);
 
     setImageUrl(canvas.toDataURL("image/png"));
     setGenerating(false);
@@ -303,6 +307,34 @@ function getPoeticLine(name: NameEntry): string {
   }
   // Minimal fallback
   return `Inspired by ${name.sourceCategory === "poetry" ? "classical Chinese poetry" : "ancient Chinese tradition"}.`;
+}
+
+/**
+ * Build the QR code URL — encodes essential name data for the /share page.
+ */
+function buildShareUrl(name: NameEntry): string {
+  const base = "https://newchinesename.com/share";
+  const params = new URLSearchParams();
+  if (name.fullChars) params.set("n", name.fullChars);
+  else if (name.chars) params.set("n", name.chars.replace(/ /g, ""));
+  if (name.meaning) params.set("m", name.meaning);
+  if (name.sourceCategory) params.set("c", name.sourceCategory);
+  return `${base}?${params.toString()}`;
+}
+
+/**
+ * Load a QR code image from the qrserver API.
+ */
+function loadQrCode(url: string): Promise<HTMLImageElement> {
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    img.crossOrigin = "anonymous";
+    img.onload = () => resolve(img);
+    img.onerror = reject;
+    img.src = `https://api.qrserver.com/v1/create-qr-code/?size=120x120&data=${encodeURIComponent(url)}`;
+    // Timeout after 5 seconds
+    setTimeout(() => reject(new Error("QR timeout")), 5000);
+  });
 }
 
 // Helper: rounded rectangle
