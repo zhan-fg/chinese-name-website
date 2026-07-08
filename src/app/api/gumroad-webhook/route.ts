@@ -228,6 +228,7 @@ async function handleBaziPurchase(
   }
 
   // pyzrg = Bazi Reading ($4.99 → 1 unlock, $9.99 → 10 unlocks)
+  let reportUnlocks = 0;
   if (price === 499) reportUnlocks = 1;
   else if (price === 999) reportUnlocks = 10;
   else reportUnlocks = 1;
