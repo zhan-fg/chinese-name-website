@@ -506,7 +506,6 @@ export default function Home() {
         {step === "result" && result && (
           <NameResult
             name={result}
-            onRetry={handleRetry}
             onReset={handleReset}
             onShare={handleShare}
             isUnlocked={isCurrentUnlocked}

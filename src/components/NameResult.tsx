@@ -6,7 +6,6 @@ import { useState, useCallback } from "react";
 
 interface Props {
   name: NameEntry;
-  onRetry: () => void;
   onReset: () => void;
   onShare: () => void;
   /** Whether this specific name is unlocked (paid) */
@@ -156,7 +155,6 @@ function BlurOverlay({
 
 export default function NameResult({
   name,
-  onRetry,
   onReset,
   onShare,
   isUnlocked,
