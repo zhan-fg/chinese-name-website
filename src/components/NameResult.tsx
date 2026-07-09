@@ -612,16 +612,6 @@ export default function NameResult({
       {/* Bottom actions */}
       <div className="px-6 py-4 border-t border-card-border bg-[#F8FAFB] space-y-2">
         <button
-          onClick={onRetry}
-          className="w-full py-2.5 text-sm text-deep-blue font-medium hover:bg-[#EEF4F8] rounded-lg transition-colors flex items-center justify-center gap-1.5"
-        >
-          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-            <polyline points="23 4 23 10 17 10" />
-            <path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10" />
-          </svg>
-          Find me another name
-        </button>
-        <button
           onClick={onReset}
           className="w-full py-2 text-xs text-text-secondary hover:text-text-primary transition-colors flex items-center justify-center gap-1"
         >
