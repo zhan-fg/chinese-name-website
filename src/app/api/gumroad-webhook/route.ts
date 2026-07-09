@@ -63,8 +63,10 @@ export async function POST(request: NextRequest) {
     const normalizedEmail = email.toLowerCase().trim();
 
     // ── Detect bazi product (shared Gumroad account) ──
-    const baziPermalink = process.env.BAZI_GUMROAD_PERMALINK || "pyzrg";
-    if (permalink === baziPermalink || permalink === "pyzrg") {
+    // Gumroad sends product_permalink as full URL (https://zhanqiuhui.gumroad.com/l/pyzrg)
+    // so use includes instead of exact match.
+    const baziSlug = process.env.BAZI_GUMROAD_PERMALINK || "pyzrg";
+    if ((permalink || "").includes(baziSlug)) {
       return handleBaziPurchase(saleId, normalizedEmail, price, permalink, productName, claimToken);
     }
 
