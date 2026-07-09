@@ -363,11 +363,6 @@ export default function Home() {
     }
   };
 
-  const handleRetry = async () => {
-    setError(null);
-    await fetchName(englishName, selfWord, surname);
-  };
-
   const handleReset = () => {
     setCategory(null);
     setEnglishName("");
