@@ -37,6 +37,7 @@ export default function Home() {
   const [category, setCategory] = useState<SourceCategory | null>(null);
   const [englishName, setEnglishName] = useState("");
   const [selfWord, setSelfWord] = useState("");
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const [surname, setSurname] = useState("");
   const [birthData, setBirthData] = useState<{
     year: number; month: number; day: number; hour: number; minute: number; location: string;
