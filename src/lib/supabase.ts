@@ -1,4 +1,4 @@
-import { createClient } from "@supabase/supabase-js";
+import { createClient, SupabaseClient } from "@supabase/supabase-js";
 
 // Vercel Supabase integration sets SUPABASE_URL / SUPABASE_ANON_KEY
 // Also support manual NEXT_PUBLIC_* vars for flexibility
@@ -6,13 +6,46 @@ const supabaseUrl = process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE
 const supabaseAnonKey = process.env.SUPABASE_ANON_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || "";
 const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY || "";
 
+function createSafeClient(url: string, key: string, opts?: { auth?: { persistSession: boolean } }): SupabaseClient | null {
+  if (!url || !key) return null;
+  return createClient(url, key, opts);
+}
+
 // Public client — for client-side reads (anonymous users)
 export const supabase = createClient(supabaseUrl, supabaseAnonKey);
 
-// Admin client — for server-side writes (bypasses RLS)
+// Admin client — for server-side writes (bypasses RLS).
+// Separate instances: supabaseAdminBazi uses createSafeClient (may be null),
+// supabaseAdmin always returns a client for existing chinese-name routes.
+const _supabaseAdmin = createSafeClient(supabaseUrl, supabaseServiceKey, {
+  auth: { persistSession: false },
+});
+
+// Non-null admin client for existing chinese-name routes
 export const supabaseAdmin = createClient(supabaseUrl, supabaseServiceKey, {
   auth: { persistSession: false },
 });
+
+// Assert admin client is available — use in routes that require it
+export function requireSupabaseAdmin(): SupabaseClient {
+  if (!_supabaseAdmin) {
+    throw new Error("Supabase not configured. Set SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY env vars.");
+  }
+  return _supabaseAdmin;
+}
+
+// ═══════════════════════════════════════════════
+// BaZi table names (bazi_ prefix)
+// ═══════════════════════════════════════════════
+export const BAZI_TABLES = {
+  users: "bazi_users",
+  claimTokens: "bazi_claim_tokens",
+  processedSales: "bazi_processed_sales",
+  chartCache: "bazi_chart_cache",
+} as const;
+
+// Alias used by bazi API routes
+export const TABLES = BAZI_TABLES;
 
 // ============================================================
 // Database schema (run this in Supabase SQL Editor):

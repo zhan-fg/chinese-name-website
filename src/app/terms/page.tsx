@@ -1,148 +1,57 @@
-import type { Metadata } from "next";
-
-export const metadata: Metadata = {
-  title: "Terms of Service",
-  description: "Shan Shui terms of service and conditions of use.",
-};
+import Link from "next/link";
 
 export default function TermsPage() {
   return (
-    <main className="min-h-screen bg-[#F8FAFB]">
-      <div className="max-w-2xl mx-auto px-4 py-12">
-        <h1 className="text-2xl font-light text-text-primary mb-2">
-          Terms of Service
-        </h1>
-        <p className="text-sm text-text-secondary mb-8">
-          Last updated: June 2026
-        </p>
+    <main className="flex-1 max-w-2xl mx-auto px-4 py-12 w-full">
+      <Link href="/" className="text-amber-600 hover:text-amber-700 text-sm mb-6 inline-block">← Back</Link>
+      <h1 className="text-2xl font-bold text-stone-800 mb-6">Terms of Service</h1>
+      <p className="text-stone-500 text-sm mb-8">Last updated: July 2026</p>
 
-        <div className="space-y-5 text-sm text-text-secondary leading-relaxed">
-          <section>
-            <h2 className="text-base font-medium text-text-primary mb-2">
-              1. Acceptance of Terms
-            </h2>
-            <p>
-              By accessing or using Shan Shui, you agree to be bound by these
-              Terms of Service. If you do not agree, please do not use the
-              service.
-            </p>
-          </section>
+      <div className="prose prose-stone max-w-none text-sm leading-relaxed space-y-6">
+        <section>
+          <h2 className="text-base font-semibold text-stone-800">1. Acceptance of Terms</h2>
+          <p>By accessing or using this website ("Service"), you agree to be bound by these Terms of Service. If you do not agree, do not use the Service.</p>
+        </section>
 
-          <section>
-            <h2 className="text-base font-medium text-text-primary mb-2">
-              2. Service Description
-            </h2>
-            <p>
-              Shan Shui provides AI-generated Chinese name suggestions based on
-              user-provided inputs. Names are generated using artificial
-              intelligence and reference classical Chinese texts. We strive for
-              accuracy but make no guarantees about the cultural appropriateness,
-              meaning, or pronunciation of generated names.
-            </p>
-          </section>
+        <section>
+          <h2 className="text-base font-semibold text-stone-800">2. Description of Service</h2>
+          <p>This website provides automated Chinese astrology (Bazi and Ziwei Doushu) chart generation and professional readings based on user-provided birth information. Charts are generated algorithmically. Readings are produced using specialized analytical frameworks grounded in traditional Chinese metaphysical systems.</p>
+        </section>
 
-          <section>
-            <h2 className="text-base font-medium text-text-primary mb-2">
-              3. User Responsibilities
-            </h2>
-            <ul className="list-disc pl-5 space-y-1">
-              <li>
-                You are responsible for the inputs you provide to the service.
-              </li>
-              <li>
-                Do not use the service to generate offensive, harmful, or
-                inappropriate content.
-              </li>
-              <li>
-                Do not abuse the API with excessive automated requests.
-              </li>
-              <li>
-                Generated names are suggestions — you are responsible for
-                verifying their appropriateness before use.
-              </li>
-            </ul>
-          </section>
+        <section>
+          <h2 className="text-base font-semibold text-stone-800">3. User Responsibilities</h2>
+          <p>You agree to provide accurate birth information. You are solely responsible for any decisions made based on the content provided by this Service. The Service is intended for users aged 18 and above.</p>
+        </section>
 
-          <section>
-            <h2 className="text-base font-medium text-text-primary mb-2">
-              4. Intellectual Property
-            </h2>
-            <p>
-              The name suggestions, cultural explanations, and stories generated
-              by Shan Shui are AI-generated content. You may freely use names
-              generated for you personally. The underlying code, design, and
-              curated fallback content are proprietary. Classical source texts
-              cited in name generations are in the public domain.
-            </p>
-          </section>
+        <section>
+          <h2 className="text-base font-semibold text-stone-800">4. Payments and Billing</h2>
+          <p>Chart generation is free. Professional astrology readings are offered as one-time purchases. All prices are in USD and include applicable taxes where required. Payments are processed securely through Gumroad. By making a purchase, you agree to Gumroad's terms of service.</p>
+        </section>
 
-          <section>
-            <h2 className="text-base font-medium text-text-primary mb-2">
-              5. Payment and Refunds
-            </h2>
-            <p>
-              Paid services (credit packs and subscriptions) are processed
-              through our payment provider. All purchases are subject to our{" "}
-              <a
-                href="/refund"
-                className="text-deep-blue hover:underline"
-              >
-                Refund Policy
-              </a>
-              , which is incorporated into these terms by reference.
-            </p>
-          </section>
+        <section>
+          <h2 className="text-base font-semibold text-stone-800">5. Intellectual Property</h2>
+          <p>The chart poster design, website interface, and generated content are protected by copyright. You may download and share your personal chart poster for non-commercial use. You may not resell, redistribute, or claim ownership of the generated content or website materials.</p>
+        </section>
 
-          <section>
-            <h2 className="text-base font-medium text-text-primary mb-2">
-              6. Limitation of Liability
-            </h2>
-            <p>
-              Shan Shui is provided &ldquo;as is&rdquo; without warranties of any
-              kind. We are not liable for any damages arising from the use of the
-              service, including but not limited to: inaccurate name suggestions,
-              cultural misunderstandings, or service interruptions.
-            </p>
-          </section>
+        <section>
+          <h2 className="text-base font-semibold text-stone-800">6. Disclaimer of Warranties</h2>
+          <p>The Service is provided "as is" without warranties of any kind. We do not guarantee the accuracy, completeness, or usefulness of any chart or reading. Astrological content is for entertainment and cultural purposes only and does not constitute professional, medical, financial, or legal advice.</p>
+        </section>
 
-          <section>
-            <h2 className="text-base font-medium text-text-primary mb-2">
-              7. Service Availability
-            </h2>
-            <p>
-              We reserve the right to modify, suspend, or discontinue the service
-              at any time. We may impose usage limits to protect service quality.
-            </p>
-          </section>
+        <section>
+          <h2 className="text-base font-semibold text-stone-800">7. Limitation of Liability</h2>
+          <p>To the fullest extent permitted by law, we shall not be liable for any indirect, incidental, special, consequential, or punitive damages arising from your use of the Service, including but not limited to decisions made based on chart readings.</p>
+        </section>
 
-          <section>
-            <h2 className="text-base font-medium text-text-primary mb-2">
-              8. Changes to Terms
-            </h2>
-            <p>
-              We may update these terms at any time. Continued use of the service
-              after changes constitutes acceptance of the new terms.
-            </p>
-          </section>
+        <section>
+          <h2 className="text-base font-semibold text-stone-800">8. Changes to Terms</h2>
+          <p>We reserve the right to modify these terms at any time. Continued use of the Service after changes constitutes acceptance of the new terms.</p>
+        </section>
 
-          <section>
-            <h2 className="text-base font-medium text-text-primary mb-2">
-              9. Contact
-            </h2>
-            <p>
-              For questions about these terms, contact us through{" "}
-              <a
-                href="https://github.com/zhan-fg/chinese-name-website"
-                className="text-deep-blue hover:underline"
-                target="_blank"
-                rel="noopener noreferrer"
-              >
-                github.com/zhan-fg/chinese-name-website
-              </a>
-              .
-            </p>
-          </section>
-        </div>
+        <section>
+          <h2 className="text-base font-semibold text-stone-800">9. Contact</h2>
+          <p>For questions about these terms, contact us at the email address provided on our website.</p>
+        </section>
       </div>
     </main>
   );

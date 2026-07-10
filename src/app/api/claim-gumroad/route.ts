@@ -1,244 +1,170 @@
-import { NextRequest, NextResponse } from "next/server";
-import { supabaseAdmin } from "@/lib/supabase";
+﻿import { NextRequest, NextResponse } from "next/server";
+import { requireSupabaseAdmin, TABLES } from "@/lib/supabase";
+import type { SupabaseClient } from "@supabase/supabase-js";
 
 /**
  * POST /api/claim-gumroad
  * Called after Gumroad purchase to unlock content.
- * Requires a valid claim token from /api/init-claim.
  *
- * Body: { email: string, token: string, nameId?: string, productType?: string }
+ * Body: { email: string, token: string, chartId?: string }
  */
 export async function POST(request: NextRequest) {
   try {
-    const { email, token, productType, nameId } = await request.json();
+    const db = requireSupabaseAdmin();
+    const { email, token, chartId } = await request.json();
 
-    if (!email) {
+    if (!email) return NextResponse.json({ error: "Email is required" }, { status: 400 });
+    if (!token) return NextResponse.json({ error: "Claim token is required" }, { status: 400 });
+    if (!chartId) return NextResponse.json({ error: "chartId is required" }, { status: 400 });
+
+    const normalizedEmail = email.toLowerCase().trim();
+
+    // Verify token
+    const { data: pendingRecord } = await db
+      .from(TABLES.claimTokens)
+      .select("id, chart_id, status, expires_at, email")
+      .eq("token", token)
+      .eq("chart_id", chartId)
+      .in("status", ["pending", "verified"])
+      .maybeSingle();
+
+    if (!pendingRecord) {
+      return NextResponse.json({ error: "Invalid or expired claim token." }, { status: 400 });
+    }
+
+    if (new Date(pendingRecord.expires_at) < new Date()) {
+      await db.from(TABLES.claimTokens)
+        .update({ status: "expired" }).eq("id", pendingRecord.id);
+      return NextResponse.json({ error: "Claim token has expired." }, { status: 400 });
+    }
+
+    // Mark token as claimed
+    await db.from(TABLES.claimTokens).update({
+      status: "claimed",
+      claimed_at: new Date().toISOString(),
+      email: normalizedEmail,
+    }).eq("id", pendingRecord.id);
+
+    // Verify user has unlocks
+    let { data: userRecord } = await db
+      .from(TABLES.users)
+      .select("id, report_unlocks_remaining")
+      .eq("email", normalizedEmail)
+      .order("created_at", { ascending: false })
+      .limit(1)
+      .single();
+
+    // 鈹€鈹€ Fallback 1: check both processed_sales tables 鈹€鈹€
+    // The shared Gumroad webhook writes ALL purchases to `processed_sales`.
+    // Filter by product_permalink containing "pyzrg" to distinguish bazi purchases
+    // from chinese-name purchases (kqzwc, uawodz, etc.).
+    // Also check bazi_processed_sales in case the webhook's bazi branch ran.
+    if (!userRecord || (userRecord.report_unlocks_remaining || 0) <= 0) {
+      const [{ data: sharedSale }, { data: baziSale }] = await Promise.all([
+        db
+          .from("processed_sales")
+          .select("id, product_permalink")
+          .eq("email", normalizedEmail)
+          .ilike("product_permalink", "%pyzrg%")
+          .order("created_at", { ascending: false })
+          .limit(1)
+          .maybeSingle(),
+        db
+          .from(TABLES.processedSales)
+          .select("id")
+          .eq("email", normalizedEmail)
+          .order("created_at", { ascending: false })
+          .limit(1)
+          .maybeSingle(),
+      ]);
+
+      const saleRecord = sharedSale || baziSale;
+
+      if (saleRecord) {
+        const source = sharedSale ? "processed_sales" : "bazi_processed_sales";
+        console.log(`claim-gumroad: found bazi purchase in ${source} for ${normalizedEmail}`);
+        if (userRecord) {
+          await db.from(TABLES.users)
+            .update({
+              report_unlocks_remaining: (userRecord.report_unlocks_remaining || 0) + 1,
+              updated_at: new Date().toISOString(),
+            })
+            .eq("id", userRecord.id);
+        } else {
+          const { data: newUser } = await db.from(TABLES.users)
+            .insert({
+              anonymous_id: `recovery-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+              email: normalizedEmail,
+              free_uses_remaining: 0,
+              report_unlocks_remaining: 1,
+              subscription_status: "none",
+            })
+            .select("id, report_unlocks_remaining")
+            .single();
+          userRecord = newUser;
+        }
+      }
+    }
+
+    // 鈹€鈹€ Final fallback: check Gumroad API directly 鈹€鈹€
+    if (!userRecord || (userRecord.report_unlocks_remaining || 0) <= 0) {
+      const { verifyPurchase } = await import("@/lib/gumroad");
+      const gumroadVerified = await verifyPurchase(normalizedEmail);
+      if (gumroadVerified) {
+        // Create user with 1 unlock
+        const { data: newUser } = await db.from(TABLES.users)
+          .insert({
+            anonymous_id: `gumroad-api-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+            email: normalizedEmail,
+            free_uses_remaining: 0,
+            report_unlocks_remaining: 1,
+            subscription_status: "none",
+          })
+          .select("id, report_unlocks_remaining")
+          .single();
+        userRecord = newUser;
+      }
+    }
+
+    const reportUnlocks = userRecord?.report_unlocks_remaining || 0;
+
+    if (!userRecord || reportUnlocks <= 0) {
       return NextResponse.json(
-        { error: "Email is required" },
+        { error: "No verified purchase found. Use the same email as Gumroad." },
         { status: 400 }
       );
     }
 
-    const normalizedEmail = email.toLowerCase().trim();
+    // Decrement unlocks
+    await db.from(TABLES.users)
+      .update({
+        report_unlocks_remaining: reportUnlocks - 1,
+        updated_at: new Date().toISOString(),
+      })
+      .eq("id", userRecord.id);
 
-    // Handle Report purchase (single name unlock) — requires token
-    if (productType === "report" && nameId) {
-      if (!token) {
-        return NextResponse.json(
-          { error: "Claim token is required" },
-          { status: 400 }
-        );
-      }
+    // Add chartId to unlocked_charts
+    const { data: existingUser } = await db
+      .from(TABLES.users)
+      .select("id, unlocked_charts")
+      .eq("id", userRecord.id)
+      .single();
 
-      // Verify the token (accepts "pending" or "verified" status)
-      const { data: pendingRecord } = await supabaseAdmin
-        .from("claim_tokens")
-        .select("id, name_id, status, expires_at, claimed_at, email")
-        .eq("token", token)
-        .eq("name_id", nameId)
-        .in("status", ["pending", "verified"])
-        .maybeSingle();
-
-      if (!pendingRecord) {
-        return NextResponse.json(
-          { error: "Invalid or expired claim token. Please go back and try again." },
-          { status: 400 }
-        );
-      }
-
-      // Check expiry
-      if (new Date(pendingRecord.expires_at) < new Date()) {
-        await supabaseAdmin
-          .from("claim_tokens")
-          .update({ status: "expired" })
-          .eq("id", pendingRecord.id);
-        return NextResponse.json(
-          { error: "Claim token has expired. Please go back and try again." },
-          { status: 400 }
-        );
-      }
-
-      // Mark token as claimed
-      const { error: updateTokenError } = await supabaseAdmin
-        .from("claim_tokens")
+    const unlockedCharts: string[] = existingUser?.unlocked_charts || [];
+    if (!unlockedCharts.includes(chartId)) {
+      unlockedCharts.push(chartId);
+      await db.from(TABLES.users)
         .update({
-          status: "claimed",
-          claimed_at: new Date().toISOString(),
-          email: normalizedEmail,
-        })
-        .eq("id", pendingRecord.id);
-
-      if (updateTokenError) {
-        console.error("Failed to mark token as claimed:", updateTokenError);
-      }
-
-      // VERIFY PAYMENT: check if user has a verified purchase (from Gumroad webhook)
-      const { data: userRecord } = await supabaseAdmin
-        .from("users")
-        .select("id, report_unlocks_remaining")
-        .eq("email", normalizedEmail)
-        .order("created_at", { ascending: false })
-        .limit(1)
-        .single();
-
-      const reportUnlocks = userRecord?.report_unlocks_remaining || 0;
-
-      if (!userRecord || reportUnlocks <= 0) {
-        return NextResponse.json(
-          {
-            error:
-              "No verified purchase found for this email. Make sure you used the same email on Gumroad. Purchases may take a moment to process.",
-          },
-          { status: 400 }
-        );
-      }
-
-      // Decrement remaining unlocks
-      await supabaseAdmin
-        .from("users")
-        .update({
-          report_unlocks_remaining: reportUnlocks - 1,
+          unlocked_charts: unlockedCharts,
           updated_at: new Date().toISOString(),
         })
         .eq("id", userRecord.id);
-
-      // Check if user exists (for unlocked_names)
-      const { data: existing } = await supabaseAdmin
-        .from("users")
-        .select("id, unlocked_names")
-        .eq("email", normalizedEmail)
-        .order("created_at", { ascending: false })
-        .limit(1)
-        .single();
-
-      // Parse existing unlocked names
-      let unlockedNames: string[] = [];
-      try {
-        unlockedNames = existing?.unlocked_names
-          ? (typeof existing.unlocked_names === "string"
-              ? JSON.parse(existing.unlocked_names)
-              : existing.unlocked_names)
-          : [];
-      } catch {
-        unlockedNames = [];
-      }
-
-      if (!unlockedNames.includes(nameId)) {
-        unlockedNames.push(nameId);
-      }
-
-      if (existing) {
-        await supabaseAdmin
-          .from("users")
-          .update({
-            unlocked_names: JSON.stringify(unlockedNames),
-            updated_at: new Date().toISOString(),
-          })
-          .eq("id", existing.id);
-      } else {
-        await supabaseAdmin.from("users").insert({
-          anonymous_id: `gumroad-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
-          email: normalizedEmail,
-          free_uses_remaining: 0,
-          credits_remaining: 0,
-          subscription_status: "none",
-          unlocked_names: JSON.stringify(unlockedNames),
-        });
-      }
-
-      return NextResponse.json({
-        success: true,
-        isUnlock: true,
-        nameId,
-      });
     }
 
-    // Handle credits/subscription — also require token for report purchases
-    // For credits: allow without token (purchased from pricing page)
-    const url = new URL(request.url);
-    const price = url.searchParams.get("price");
-
-    let credits = 5;
-    let isSubscription = false;
-
-    if (price === "499") {
-      isSubscription = true;
-      credits = 0;
-    } else if (price === "1299") {
-      credits = 15;
-    }
-
-    if (isSubscription) {
-      const endDate = new Date();
-      endDate.setDate(endDate.getDate() + 30);
-
-      const { data: existing } = await supabaseAdmin
-        .from("users")
-        .select("id")
-        .eq("email", normalizedEmail)
-        .order("created_at", { ascending: false })
-        .limit(1)
-        .single();
-
-      if (existing) {
-        await supabaseAdmin
-          .from("users")
-          .update({
-            subscription_status: "active",
-            subscription_end: endDate.toISOString(),
-            updated_at: new Date().toISOString(),
-          })
-          .eq("id", existing.id);
-      } else {
-        await supabaseAdmin.from("users").insert({
-          anonymous_id: `gumroad-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
-          email: normalizedEmail,
-          free_uses_remaining: 0,
-          credits_remaining: 0,
-          subscription_status: "active",
-          subscription_end: endDate.toISOString(),
-          daily_uses: 0,
-          daily_date: new Date().toISOString().slice(0, 10),
-        });
-      }
-    } else {
-      const { data: existing } = await supabaseAdmin
-        .from("users")
-        .select("id, credits_remaining")
-        .eq("email", normalizedEmail)
-        .order("created_at", { ascending: false })
-        .limit(1)
-        .single();
-
-      if (existing) {
-        await supabaseAdmin
-          .from("users")
-          .update({
-            credits_remaining: (existing.credits_remaining || 0) + credits,
-            updated_at: new Date().toISOString(),
-          })
-          .eq("id", existing.id);
-      } else {
-        await supabaseAdmin.from("users").insert({
-          anonymous_id: `gumroad-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
-          email: normalizedEmail,
-          free_uses_remaining: 0,
-          credits_remaining: credits,
-          subscription_status: "none",
-        });
-      }
-    }
-
-    return NextResponse.json({
-      success: true,
-      credits,
-      isSubscription,
-    });
+    return NextResponse.json({ success: true, isUnlock: true, chartId });
   } catch (error) {
     console.error("claim-gumroad error:", error);
-    return NextResponse.json(
-      { error: "Failed to claim credits" },
-      { status: 500 }
-    );
+    return NextResponse.json({ error: "Failed to claim" }, { status: 500 });
   }
 }
+
