@@ -1,7 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getChart } from '@/lib/storage';
-import fs from 'fs';
-import path from 'path';
 
 export async function GET(request: NextRequest) {
   const id = request.nextUrl.searchParams.get('id');

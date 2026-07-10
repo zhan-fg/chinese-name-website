@@ -1,15 +1,8 @@
 import type { Metadata, Viewport } from "next";
-import { Inter } from "next/font/google";
 import "./globals.css";
 import StructuredData from "@/components/StructuredData";
 import GoogleAnalytics from "@/components/GoogleAnalytics";
 import CookieConsent from "@/components/CookieConsent";
-
-const inter = Inter({
-  subsets: ["latin"],
-  variable: "--font-inter",
-  display: "swap",
-});
 
 const SITE_URL =
   process.env.NEXT_PUBLIC_SITE_URL ||
@@ -113,7 +106,7 @@ export default function RootLayout({
         <link rel="llms" href={`${SITE_URL}/llms.txt`} />
         <link rel="llms-full" href={`${SITE_URL}/llms-full.txt`} />
       </head>
-      <body className={`${inter.variable} font-sans antialiased`}>
+      <body className="font-sans antialiased">
         {children}
         <CookieConsent />
       </body>

@@ -4,7 +4,9 @@
   "private": true,
   "scripts": {
     "dev": "next dev",
-    "build": "next build",
+    "copy-calc-deps": "node -e \"const{cpSync}=require('fs');const{join}=require('path');const s=join('node_modules','lunar-typescript');const d=join('calculator','node_modules','lunar-typescript');cpSync(s,d,{recursive:true});console.log('copied lunar-typescript to calculator/node_modules')\"",
+    "prebuild": "npm run copy-calc-deps",
+    "build": "npm run copy-calc-deps && next build",
     "start": "next start",
     "lint": "next lint"
   },

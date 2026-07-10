@@ -31,6 +31,9 @@ yarn-error.log*
 # vercel
 .vercel
 
+# nested calculator deps (managed by root package.json)
+/calculator/node_modules
+
 # typescript
 *.tsbuildinfo
 next-env.d.ts

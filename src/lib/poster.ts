@@ -1,18 +1,3 @@
-import fs from 'fs';
-import path from 'path';
-
-async function loadFont(name: string, file: string): Promise<{ name: string; data: Buffer; style: string }> {
-  const fontPath = path.join(process.cwd(), 'fonts', file);
-  if (!fs.existsSync(fontPath)) {
-    throw new Error(`Font not found: ${fontPath}`);
-  }
-  return {
-    name,
-    data: fs.readFileSync(fontPath),
-    style: 'normal',
-  };
-}
-
 export async function renderPosterPNG(
   posterHTML: string,
   qrDataURL: string
@@ -36,10 +21,10 @@ export async function renderPosterPNG(
 
 // For server-side PNG export using satori
 export async function renderPosterPNGServer(
-  chartData: any,
-  analysisData: any,
-  qrDataURL: string,
-  baseUrl: string
+  _chartData: any,
+  _analysisData: any,
+  _qrDataURL: string,
+  _baseUrl: string
 ): Promise<Buffer> {
   // Simplified: use the existing render.js HTML template approach
   // which already produces a self-contained HTML poster

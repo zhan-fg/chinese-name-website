@@ -1,7 +1,8 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  // Enable PWA via next-pwa plugin
-  // Note: next-pwa requires setup in development with the withPWA wrapper
+  // Disable font optimization in local dev — GFW blocks Google Fonts.
+  // Vercel's build environment has no such restriction.
+  optimizeFonts: false,
 };
 
 export default nextConfig;

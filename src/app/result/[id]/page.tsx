@@ -90,9 +90,7 @@ export default function ResultPage() {
     }
   };
 
-  const unlockWithBalance = () => {
-    setPhase("generating");
-  };
+  // (unlockWithBalance removed — unused)
 
   // ─── Payment ────────────────────────────────────────────
 
@@ -144,7 +142,7 @@ export default function ResultPage() {
 
   // ─── Generate reading ───────────────────────────────────
 
-  const onUnlocked = useCallback((userEmail: string) => {
+  const onUnlocked = useCallback((_userEmail: string) => {
     setPhase("generating");
   }, []);
 

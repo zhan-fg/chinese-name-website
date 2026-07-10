@@ -7,8 +7,8 @@
 // embedded in English output strings are glossaried via lib/glossary.
 
 import {
-  tGeju, tGan, tGanElement, tWangShuai, tStar, tStars, tSiHua,
-  tZhi, tPalace, tShiShen, tWuXingJu,
+  tGeju, tGan, tGanElement, tWangShuai, tStar, tSiHua,
+  tZhi, tPalace, tShiShen,
 } from '@/lib/glossary';
 
 export function generateAnalysis(chart: any, birthInfo: any): any {

@@ -1,3 +1,5 @@
+export const dynamic = "force-dynamic";
+
 import { NextRequest, NextResponse } from "next/server";
 import { requireSupabaseAdmin, TABLES } from "@/lib/supabase";
 
@@ -27,14 +29,11 @@ export async function POST(request: NextRequest) {
       .limit(1)
       .maybeSingle();
 
-    // 2. Count new purchases since last credit.
-    // Only count processed_sales (shared table) — bazi_processed_sales purchases
-    // are handled by the webhook's handleBaziPurchase which directly updates bazi_users.
-    // If last_credited_at is null, default to now so no historical double-count.
+    // 2. Count new purchases since last credit from bazi_processed_sales.
     const lastCreditedAt = user?.last_credited_at || new Date().toISOString();
 
     const { data: sharedSales } = await db
-      .from("processed_sales")
+      .from(TABLES.processedSales)
       .select("sale_id, product_permalink, created_at")
       .eq("email", normalizedEmail)
       .gt("created_at", lastCreditedAt)
@@ -59,7 +58,7 @@ export async function POST(request: NextRequest) {
         .eq("id", user.id);
     } else if (totalNew > 0 && !user) {
       reportUnlocks = totalNew;
-      const { data: newUser } = await db.from(TABLES.users)
+      const { data: _newUser } = await db.from(TABLES.users)
         .insert({
           anonymous_id: `gsale-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
           email: normalizedEmail,

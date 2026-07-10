@@ -1,6 +1,7 @@
+export const dynamic = "force-dynamic";
+
 ﻿import { NextRequest, NextResponse } from "next/server";
 import { requireSupabaseAdmin, TABLES } from "@/lib/supabase";
-import type { SupabaseClient } from "@supabase/supabase-js";
 
 /**
  * POST /api/claim-gumroad
