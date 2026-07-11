@@ -1,0 +1,13 @@
+{
+  "functions": {
+    "src/app/api/chart/route.ts": {
+      "includeFiles": "calculator/dist/** calculator/node_modules/**"
+    },
+    "src/app/api/poster-image/route.ts": {
+      "includeFiles": "calculator/dist/** calculator/node_modules/** templates/**"
+    },
+    "src/app/api/generate-reading/route.ts": {
+      "includeFiles": "prompts/**"
+    }
+  }
+}

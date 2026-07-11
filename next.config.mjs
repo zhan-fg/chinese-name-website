@@ -4,15 +4,21 @@ const nextConfig = {
   // Vercel's build environment has no such restriction.
   optimizeFonts: false,
   experimental: {
-    // Ensure lunar-typescript AND calculator/dist/ are included in Vercel deployment.
-    // calculator/dist/*.js is called via execSync (child process),
-    // so Next.js output file tracing doesn't see these runtime dependencies.
+    // Include calculator, templates, prompts in Vercel deployment.
+    // These are runtime dependencies accessed via execSync (child process)
+    // or fs.readFileSync, not visible to Next.js static import analyzer.
     outputFileTracingIncludes: {
-      "/*": [
-        "./node_modules/lunar-typescript/**/*",
-        "./calculator/**/*",
-        "./templates/**/*",
-        "./prompts/**/*",
+      "/api/chart": [
+        "./calculator/dist/**/*.js",
+        "./calculator/node_modules/**/*",
+      ],
+      "/api/poster-image": [
+        "./calculator/dist/**/*.js",
+        "./calculator/node_modules/**/*",
+        "./templates/**/*.html",
+      ],
+      "/api/generate-reading": [
+        "./prompts/**/*.md",
       ],
     },
   },
