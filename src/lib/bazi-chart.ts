@@ -3,6 +3,11 @@ import path from 'path';
 import fs from 'fs';
 import os from 'os';
 
+// Force Next.js output file tracing to include lunar-typescript.
+// calculator/dist/*.js requires it at runtime via execSync (child process),
+// so the static import analyzer can't see the dependency.
+import 'lunar-typescript';
+
 const CWD = process.cwd();
 const CALCULATOR_DIR = path.join(CWD, 'calculator');
 const TEMPLATE_PATH = path.join(CWD, 'templates', 'report-zonghe-poster.html');
