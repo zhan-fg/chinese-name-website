@@ -1,43 +1,97 @@
-import { execSync } from 'child_process';
 import path from 'path';
 import fs from 'fs';
 import os from 'os';
 
-// Force Next.js output file tracing to include lunar-typescript.
-// calculator/dist/*.js requires it at runtime via execSync (child process),
-// so the static import analyzer can't see the dependency.
-import 'lunar-typescript';
-
-const CWD = process.cwd();
-const CALCULATOR_DIR = path.join(CWD, 'calculator');
-const TEMPLATE_PATH = path.join(CWD, 'templates', 'report-zonghe-poster.html');
 const TMP = os.tmpdir();
+const TEMPLATE_PATH = path.join(process.cwd(), 'templates', 'report-zonghe-poster.html');
 const DEBUG = process.env.DEBUG === '1';
 
 function log(msg: string) {
   if (DEBUG) console.error(`[chart.ts] ${msg}`);
 }
 
-function execCalc(cmd: string): string {
-  const fullCmd = `node ${cmd}`;
-  log(`exec: ${fullCmd}`);
-  log(`cwd: ${CALCULATOR_DIR}`);
-  log(`cwd exists: ${fs.existsSync(CALCULATOR_DIR)}`);
+// ─── Calculator modules (copied from calculator/dist/ by prebuild) ───
 
-  // Pre-flight: check that key files exist
-  const distDir = path.join(CALCULATOR_DIR, 'dist');
-  log(`dist exists: ${fs.existsSync(distDir)}`);
-  if (fs.existsSync(distDir)) {
-    log(`dist files: ${fs.readdirSync(distDir).join(', ')}`);
+// eslint-disable-next-line @typescript-eslint/no-require-imports
+const { createChart } = require('./calculator/yiqi-core/index');
+// eslint-disable-next-line @typescript-eslint/no-require-imports
+const { getZhiCangGanFull } = require('./calculator/yiqi-core/bazi');
+// eslint-disable-next-line @typescript-eslint/no-require-imports
+const { enrichBazi } = require('./calculator/bazi-enrich/enrich');
+
+export interface ChartResult {
+  json: any;
+  text: string;
+}
+
+interface BirthInfo {
+  year: number;
+  month: number;
+  day: number;
+  hour: number;
+  minute: number;
+  gender: 'male' | 'female';
+  isLunar?: boolean;
+  timeZone?: number;
+}
+
+export function runChart(birthInfo: BirthInfo): ChartResult {
+  log(`runChart: ${JSON.stringify(birthInfo)}`);
+
+  const internalBirthInfo = {
+    year: birthInfo.year,
+    month: birthInfo.month,
+    day: birthInfo.day,
+    hour: birthInfo.hour,
+    minute: birthInfo.minute,
+    isLunar: birthInfo.isLunar ?? false,
+    gender: birthInfo.gender,
+    timeZone: birthInfo.timeZone ?? 8,
+  };
+
+  // Step 1: Yiqi core — 四柱+紫微+大运+流年
+  const chart = createChart(internalBirthInfo);
+
+  // 附加地支藏干(含十神)
+  const dm = chart.bazi.dayMaster;
+  const z = chart.bazi.siZhu;
+  chart.bazi.cangGan = {
+    year: getZhiCangGanFull(z.year.zhi, dm),
+    month: getZhiCangGanFull(z.month.zhi, dm),
+    day: getZhiCangGanFull(z.day.zhi, dm),
+    hour: getZhiCangGanFull(z.hour.zhi, dm),
+  };
+
+  // 补 endAge 字段
+  if (chart.bazi.dayun && Array.isArray(chart.bazi.dayun)) {
+    for (const d of chart.bazi.dayun) {
+      if (d.startAge !== undefined && d.endAge === undefined) {
+        d.endAge = d.startAge + 9;
+      }
+    }
   }
-  const nmDir = path.join(CALCULATOR_DIR, 'node_modules', 'lunar-typescript');
-  log(`lunar-typescript in calc: ${fs.existsSync(nmDir)}`);
-  const rootNm = path.join(CWD, 'node_modules', 'lunar-typescript');
-  log(`lunar-typescript in root: ${fs.existsSync(rootNm)}`);
 
+  // Step 2: enrichBazi 补层 — 格局/旺衰/调候/刑冲合害/盖头
+  const siZhuForEnrich: Record<string, any> = {
+    '年': chart.bazi.siZhu.year,
+    '月': chart.bazi.siZhu.month,
+    '日': chart.bazi.siZhu.day,
+    '时': chart.bazi.siZhu.hour,
+  };
+  chart.bazi.enrichment = enrichBazi(siZhuForEnrich);
+
+  // Step 3: dump-text — 写 chart 到 /tmp, 用 dump-text.js 生成文本
+  const tmpJson = path.join(TMP, `.chart-${Date.now()}.json`);
+  fs.writeFileSync(tmpJson, JSON.stringify(chart), 'utf-8');
+
+  let text: string;
   try {
-    return execSync(fullCmd, {
-      cwd: CALCULATOR_DIR,
+    // dump-text.js is a CLI script — we exec it once for text output
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    const { execSync } = require('child_process');
+    const calcDir = path.join(process.cwd(), 'calculator');
+    text = execSync(`node dist/dump-text.js --input=${tmpJson}`, {
+      cwd: calcDir,
       encoding: 'utf-8',
       maxBuffer: 1024 * 1024,
       timeout: 30000,
@@ -46,69 +100,8 @@ function execCalc(cmd: string): string {
   } catch (e: any) {
     const stderr = e.stderr?.toString() || '';
     const stdout = e.stdout?.toString() || '';
-    const msg = [
-      `[execCalc] command failed`,
-      `cmd: ${fullCmd}`,
-      `cwd: ${CALCULATOR_DIR}`,
-      `exit code: ${e.status}`,
-      `stderr: ${stderr.slice(-500)}`,
-      `stdout: ${stdout.slice(-200)}`,
-    ].join('\n');
-    console.error(msg);
-    throw new Error(stderr.trim() || stdout.trim() || e.message || 'execCalc failed');
-  }
-}
-
-export interface ChartResult {
-  json: any;
-  text: string;
-}
-
-// NOTE: The chart JSON is intentionally kept in the engine's raw Chinese form
-// (do not translate here). Chinese enum values are used as keys by downstream
-// logic (render.ts template placeholders like {{gongs.子.name}}, analysis.ts
-// lookups like g.gong === '官禄'). All Chinese→English/pinyin translation
-// happens at display boundaries via lib/glossary. Translating here would
-// break those key matches.
-
-export function runChart(birthInfo: {
-  year: number;
-  month: number;
-  day: number;
-  hour: number;
-  minute: number;
-  gender: 'male' | 'female';
-  isLunar?: boolean;
-}): ChartResult {
-  const args = [
-    `--year=${birthInfo.year}`,
-    `--month=${birthInfo.month}`,
-    `--day=${birthInfo.day}`,
-    `--hour=${birthInfo.hour}`,
-    `--minute=${birthInfo.minute}`,
-    `--gender=${birthInfo.gender}`,
-  ];
-  if (birthInfo.isLunar) args.push('--isLunar=true');
-
-  log(`runChart: ${JSON.stringify(birthInfo)}`);
-
-  // Step 1: run-chart
-  const raw = execCalc(`dist/run-chart.js ${args.join(' ')}`);
-
-  const jsonStart = raw.indexOf('{');
-  const jsonEnd = raw.lastIndexOf('}');
-  if (jsonStart < 0) {
-    throw new Error(`No JSON found in output. Raw output: ${raw.slice(0, 500)}`);
-  }
-  const clean = raw.slice(jsonStart, jsonEnd + 1);
-  const chart = JSON.parse(clean);
-
-  // Step 2: dump-text — write chart to /tmp, pass absolute path
-  const tmpJson = path.join(TMP, `.chart-${Date.now()}.json`);
-  fs.writeFileSync(tmpJson, JSON.stringify(chart), 'utf-8');
-  let text: string;
-  try {
-    text = execCalc(`dist/dump-text.js --input=${tmpJson}`);
+    console.error('[dump-text] failed:', stderr.slice(-500));
+    throw new Error(stderr.trim() || stdout.trim() || e.message || 'dump-text failed');
   } finally {
     try { fs.unlinkSync(tmpJson); } catch {}
   }
@@ -129,9 +122,23 @@ export function renderPosterHTML(
 
   let html: string;
   try {
-    html = execCalc(
-      `dist/render.js --chart=${tmpChart} --analysis=${tmpAnalysis} --template=${TEMPLATE_PATH} --currentYear=${currentYear}`
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    const { execSync } = require('child_process');
+    const calcDir = path.join(process.cwd(), 'calculator');
+    html = execSync(
+      `node dist/render.js --chart=${tmpChart} --analysis=${tmpAnalysis} --template=${TEMPLATE_PATH} --currentYear=${currentYear}`,
+      {
+        cwd: calcDir,
+        encoding: 'utf-8',
+        maxBuffer: 1024 * 1024,
+        timeout: 30000,
+        stdio: ['pipe', 'pipe', 'pipe'],
+      }
     );
+  } catch (e: any) {
+    const stderr = e.stderr?.toString() || '';
+    console.error('[render] failed:', stderr.slice(-500));
+    throw new Error(stderr.trim() || e.message || 'render failed');
   } finally {
     try { fs.unlinkSync(tmpChart); } catch {}
     try { fs.unlinkSync(tmpAnalysis); } catch {}
