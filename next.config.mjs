@@ -16,6 +16,7 @@ const nextConfig = {
         "./calculator/dist/**/*.js",
         "./calculator/node_modules/**/*",
         "./templates/**/*.html",
+        "./src/lib/glossary.json",
       ],
       "/api/generate-reading": [
         "./prompts/**/*.md",

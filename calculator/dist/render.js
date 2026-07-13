@@ -14,8 +14,10 @@ function loadGlossary() {
   const candidates = [
     path.join(process.cwd(), "..", "lib", "glossary.json"),   // cwd = calculator/
     path.join(process.cwd(), "lib", "glossary.json"),         // cwd = repo root
+    path.join(process.cwd(), "src", "lib", "glossary.json"),  // cwd = repo root (src/ layout)
     path.join(__dirname, "..", "..", "lib", "glossary.json"), // from dist/
     path.join(__dirname, "..", "lib", "glossary.json"),       // from calculator/ (tsx)
+    path.join(__dirname, "..", "..", "..", "src", "lib", "glossary.json"), // dist → calculator → src/lib/
   ];
   for (const p of candidates) {
     try { if (fs.existsSync(p)) return JSON.parse(fs.readFileSync(p, "utf-8")); } catch (e) {}
