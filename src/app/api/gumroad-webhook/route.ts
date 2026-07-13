@@ -55,6 +55,8 @@ export async function POST(request: NextRequest) {
       claimToken = body["url_params[claim_token]"] || "";
     }
 
+    console.log(`[webhook] sale=${saleId} email=${email} permalink=${permalink} claim_token=${claimToken ? claimToken.slice(0,8)+"..." : "(none)"}`);
+
     if (!saleId || !email) {
       console.error("Gumroad Ping: missing sale_id or email", { saleId, email });
       return NextResponse.json({ error: "Missing required fields" }, { status: 400 });
