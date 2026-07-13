@@ -1,3 +1,5 @@
+export const dynamic = "force-dynamic";
+
 import { NextRequest, NextResponse } from 'next/server';
 import { runChart } from '@/lib/chart';
 import { saveChart, cleanupOldFiles } from '@/lib/storage';
@@ -26,7 +28,11 @@ export async function POST(request: NextRequest) {
       isLunar: isLunar === true,
     };
 
+    console.log('[chart API] generating chart for', { year, month, day, hour, gender });
+
     const result = runChart(birthInfo);
+
+    console.log('[chart API] chart generated, keys:', Object.keys(result.json || {}).join(','));
 
     const id = crypto.randomUUID().slice(0, 8);
 
@@ -37,13 +43,13 @@ export async function POST(request: NextRequest) {
       createdAt: Date.now(),
     });
 
-    // Best-effort cleanup (fire-and-forget, safe in serverless)
     try { cleanupOldFiles(); } catch {}
 
     return NextResponse.json({ id, chart: result.json });
   } catch (err: any) {
     const msg = err.message || 'Failed to generate chart';
-    console.error('[chart API] error:', msg, err.stack?.split('\n').slice(0, 3));
+    console.error('[chart API] error:', msg);
+    console.error('[chart API] stack:', err.stack?.split('\n').slice(0, 5).join('\n'));
     return NextResponse.json({ error: msg }, { status: 500 });
   }
 }

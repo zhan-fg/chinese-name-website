@@ -11,13 +11,35 @@ function log(msg: string) {
 }
 
 // ─── Calculator modules (copied from calculator/dist/ by prebuild) ───
+// Lazily loaded to surface clear errors if prebuild didn't run.
 
-// eslint-disable-next-line @typescript-eslint/no-require-imports
-const { createChart } = require('./calculator/yiqi-core/index');
-// eslint-disable-next-line @typescript-eslint/no-require-imports
-const { getZhiCangGanFull } = require('./calculator/yiqi-core/bazi');
-// eslint-disable-next-line @typescript-eslint/no-require-imports
-const { enrichBazi } = require('./calculator/bazi-enrich/enrich');
+let _createChart: any;
+let _getZhiCangGanFull: any;
+let _enrichBazi: any;
+
+function loadCalcModules() {
+  if (_createChart) return; // already loaded
+  try {
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    _createChart = require('./calculator/yiqi-core/index').createChart;
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    _getZhiCangGanFull = require('./calculator/yiqi-core/bazi').getZhiCangGanFull;
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    _enrichBazi = require('./calculator/bazi-enrich/enrich').enrichBazi;
+  } catch (e: any) {
+    const cwd = process.cwd();
+    const files = [
+      'src/lib/calculator/yiqi-core/index.js',
+      'src/lib/calculator/yiqi-core/bazi.js',
+      'src/lib/calculator/bazi-enrich/enrich.js',
+    ];
+    const missing = files.filter(f => !fs.existsSync(path.join(cwd, f)));
+    throw new Error(
+      `Calculator modules not found. Run 'npm run copy-calc-deps' first. ` +
+      `cwd=${cwd} missing=${missing.join(',') || 'none (other error)'} error=${e.message}`
+    );
+  }
+}
 
 export interface ChartResult {
   json: any;
@@ -36,6 +58,7 @@ interface BirthInfo {
 }
 
 export function runChart(birthInfo: BirthInfo): ChartResult {
+  loadCalcModules();
   log(`runChart: ${JSON.stringify(birthInfo)}`);
 
   const internalBirthInfo = {
@@ -50,16 +73,16 @@ export function runChart(birthInfo: BirthInfo): ChartResult {
   };
 
   // Step 1: Yiqi core — 四柱+紫微+大运+流年
-  const chart = createChart(internalBirthInfo);
+  const chart = _createChart(internalBirthInfo);
 
   // 附加地支藏干(含十神)
   const dm = chart.bazi.dayMaster;
   const z = chart.bazi.siZhu;
   chart.bazi.cangGan = {
-    year: getZhiCangGanFull(z.year.zhi, dm),
-    month: getZhiCangGanFull(z.month.zhi, dm),
-    day: getZhiCangGanFull(z.day.zhi, dm),
-    hour: getZhiCangGanFull(z.hour.zhi, dm),
+    year: _getZhiCangGanFull(z.year.zhi, dm),
+    month: _getZhiCangGanFull(z.month.zhi, dm),
+    day: _getZhiCangGanFull(z.day.zhi, dm),
+    hour: _getZhiCangGanFull(z.hour.zhi, dm),
   };
 
   // 补 endAge 字段
@@ -71,22 +94,20 @@ export function runChart(birthInfo: BirthInfo): ChartResult {
     }
   }
 
-  // Step 2: enrichBazi 补层 — 格局/旺衰/调候/刑冲合害/盖头
-  const siZhuForEnrich: Record<string, any> = {
+  // Step 2: enrichBazi 补层
+  chart.bazi.enrichment = _enrichBazi({
     '年': chart.bazi.siZhu.year,
     '月': chart.bazi.siZhu.month,
     '日': chart.bazi.siZhu.day,
     '时': chart.bazi.siZhu.hour,
-  };
-  chart.bazi.enrichment = enrichBazi(siZhuForEnrich);
+  });
 
-  // Step 3: dump-text — 写 chart 到 /tmp, 用 dump-text.js 生成文本
+  // Step 3: dump-text (secondary — text formatting via child process)
   const tmpJson = path.join(TMP, `.chart-${Date.now()}.json`);
   fs.writeFileSync(tmpJson, JSON.stringify(chart), 'utf-8');
 
   let text: string;
   try {
-    // dump-text.js is a CLI script — we exec it once for text output
     // eslint-disable-next-line @typescript-eslint/no-require-imports
     const { execSync } = require('child_process');
     const calcDir = path.join(process.cwd(), 'calculator');
@@ -98,10 +119,9 @@ export function runChart(birthInfo: BirthInfo): ChartResult {
       stdio: ['pipe', 'pipe', 'pipe'],
     });
   } catch (e: any) {
-    const stderr = e.stderr?.toString() || '';
-    const stdout = e.stdout?.toString() || '';
-    console.error('[dump-text] failed:', stderr.slice(-500));
-    throw new Error(stderr.trim() || stdout.trim() || e.message || 'dump-text failed');
+    // dump-text is secondary — if it fails, return chart without text
+    console.error('[dump-text] failed (non-fatal):', (e.stderr || e.message || '').toString().slice(-300));
+    text = JSON.stringify(chart);
   } finally {
     try { fs.unlinkSync(tmpJson); } catch {}
   }
