@@ -20,7 +20,7 @@ export default function ResultPage() {
   const [error, setError] = useState("");
   const [posterHTML, setPosterHTML] = useState("");
 
-  const [phase, setPhase] = useState<"init" | "manual" | "claiming" | "unlocked" | "generating" | "done">("init");
+  const [phase, setPhase] = useState<"init" | "polling" | "manual" | "claiming" | "unlocked" | "generating" | "done">("init");
   const [email, setEmail] = useState("");
   const [claimError, setClaimError] = useState("");
   const [analysis, setAnalysis] = useState("");
@@ -31,6 +31,10 @@ export default function ResultPage() {
   const posterFrameRef = useRef<HTMLIFrameElement>(null);
   const readingRef = useRef<HTMLDivElement>(null);
   const qrRef = useRef<HTMLCanvasElement>(null);
+  const pollCount = useRef(0);
+  const maxPolls = 30; // 30 × 2s = 60s timeout
+
+  // ─── Load chart data ─────────────────────────────────────
 
   useEffect(() => {
     fetch(`/api/reading?id=${id}`)
@@ -53,6 +57,7 @@ export default function ResultPage() {
       .then(async (r) => { if (r.ok) setPosterHTML(await r.text()); })
       .catch(() => {});
   }, [data, id]);
+
   // Check if already unlocked
   useEffect(() => {
     if (!id) return;
@@ -66,13 +71,83 @@ export default function ResultPage() {
   useEffect(() => {
     if (phase !== "done" || !qrRef.current) return;
     import("qrcode").then((QRCode) => {
-      const shareUrl = `https://bazi-ziwei-web.vercel.app/share/${id}`;
+      const shareUrl = `${window.location.origin}/share/${id}`;
       QRCode.toCanvas(qrRef.current!, shareUrl, {
         width: 100, margin: 1,
         color: { dark: "#1a1a1a", light: "#ffffff" },
       });
     });
   }, [phase, id]);
+
+  // ─── Polling ─────────────────────────────────────────────
+
+  const getClaimToken = (): string => {
+    try { return sessionStorage.getItem("bazi-claim-token") || ""; } catch { return ""; }
+  };
+
+  useEffect(() => {
+    if (phase !== "polling") return;
+
+    const token = getClaimToken();
+    if (!token) {
+      setPhase("manual");
+      return;
+    }
+
+    const poll = async () => {
+      pollCount.current++;
+      try {
+        const res = await fetch(`/api/claim-status?token=${encodeURIComponent(token)}`);
+        const d = await res.json();
+
+        if (d.status === "verified") {
+          // Gumroad Ping verified — auto-claim!
+          setEmail(d.email || "");
+          await doAutoClaim(d.email || "", token);
+        } else if (d.status === "claimed") {
+          saveUnlock();
+          setPhase("generating");
+        } else if (d.status === "not_found" || pollCount.current >= maxPolls) {
+          setPhase("manual");
+        }
+        // "pending" → keep polling
+      } catch {
+        if (pollCount.current >= maxPolls) setPhase("manual");
+      }
+    };
+
+    poll();
+    const interval = setInterval(poll, 2000);
+    return () => clearInterval(interval);
+  }, [phase, id]);
+
+  const doAutoClaim = async (userEmail: string, token: string) => {
+    try {
+      const res = await fetch("/api/claim-gumroad", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          email: userEmail,
+          token,
+          productType: "chart",
+          chartId: id,
+        }),
+      });
+      const d = await res.json();
+      if (res.ok && d.success) {
+        sessionStorage.removeItem("bazi-claim-token");
+        saveUnlock();
+        onUnlocked(userEmail);
+      } else {
+        setClaimError(d.error || "Claim failed");
+        setPhase("manual");
+      }
+    } catch {
+      setPhase("manual");
+    }
+  };
+
+  // ─── Balance check ───────────────────────────────────────
 
   const checkBalance = async () => {
     const userEmail = email.trim();
@@ -90,12 +165,28 @@ export default function ResultPage() {
     }
   };
 
-  // (unlockWithBalance removed — unused)
-
   // ─── Payment ────────────────────────────────────────────
 
-  const startPayment = () => {
+  const startPayment = async () => {
     setClaimError("");
+    // Create a claim token so Gumroad Ping can auto-verify
+    try {
+      const tokenRes = await fetch("/api/init-claim", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ chartId: id }),
+      });
+      const tokenData = await tokenRes.json();
+      if (tokenData.token) {
+        sessionStorage.setItem("bazi-claim-token", tokenData.token);
+        const gumroadUrl = new URL(GUMROAD_PRODUCT_URL);
+        gumroadUrl.searchParams.set("claim_token", tokenData.token);
+        window.open(gumroadUrl.toString(), "_blank", "noopener,noreferrer");
+        setPhase("polling");
+        return;
+      }
+    } catch {}
+    // Fallback: no token, open Gumroad directly
     window.open(GUMROAD_PRODUCT_URL, "_blank", "noopener,noreferrer");
     setPhase("manual");
   };
@@ -146,7 +237,6 @@ export default function ResultPage() {
     setPhase("generating");
   }, []);
 
-  // Effect: start reading when phase changes to generating
   useEffect(() => {
     if (phase === "generating" && data) {
       generateReading(email);
@@ -185,19 +275,16 @@ export default function ResultPage() {
     setExporting("chart");
     try {
       const html2canvas = (await import("html2canvas")).default;
-
-      // Fetch poster with QR code
       const res = await fetch(`/api/poster-image?id=${id}&qr=1`);
       if (!res.ok) { setExporting(""); return; }
       const qrHTML = await res.text();
 
-      // Create hidden iframe for capture
       const tmpFrame = document.createElement("iframe");
       tmpFrame.style.cssText = "position:fixed;left:-9999px;width:1080px;height:2000px;";
       tmpFrame.srcdoc = qrHTML;
       document.body.appendChild(tmpFrame);
       await new Promise<void>((resolve) => { tmpFrame.onload = () => resolve(); });
-      await new Promise((r) => setTimeout(r, 800)); // wait for images to load
+      await new Promise((r) => setTimeout(r, 800));
 
       const body = tmpFrame.contentDocument?.body;
       if (!body) { document.body.removeChild(tmpFrame); setExporting(""); return; }
@@ -225,7 +312,6 @@ export default function ResultPage() {
       const canvas = await html2canvas(el, {
         backgroundColor: "#ffffff", scale: 2,
         onclone: (clonedDoc) => {
-          // Ensure the cloned element is visible
           const cloned = clonedDoc.body.firstElementChild as HTMLElement;
           if (cloned) cloned.style.overflow = "visible";
         },
@@ -297,7 +383,6 @@ export default function ResultPage() {
         ) : (
           <div className="flex items-center justify-center py-20 text-stone-400">Loading chart...</div>
         )}
-        {/* QR code overlay — appears after reading is generated */}
         {phase === "done" && (
           <div className="absolute bottom-4 right-4 bg-white rounded-xl shadow-lg p-2 flex items-center gap-2">
             <canvas ref={qrRef} width={100} height={100} />
@@ -309,6 +394,22 @@ export default function ResultPage() {
       </div>
 
       <div className="max-w-3xl mx-auto px-4 py-8">
+        {/* Polling indicator */}
+        {phase === "polling" && (
+          <div className="text-center py-8 space-y-3">
+            <svg className="animate-spin h-8 w-8 text-amber-600 mx-auto" viewBox="0 0 24 24">
+              <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" />
+              <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+            </svg>
+            <p className="text-stone-600 text-sm">Waiting for payment confirmation...</p>
+            <p className="text-stone-400 text-xs">Complete your purchase on Gumroad and we'll unlock automatically</p>
+            <button onClick={() => setPhase("manual")}
+              className="text-amber-600 hover:underline text-xs">
+              Already paid? Enter your email manually
+            </button>
+          </div>
+        )}
+
         {(phase === "manual" || phase === "claiming") && (
           <div className="text-center space-y-4">
             <h2 className="text-lg font-semibold text-stone-800">Verify Your Purchase</h2>
