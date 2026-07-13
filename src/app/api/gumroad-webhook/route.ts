@@ -129,16 +129,24 @@ export async function POST(request: NextRequest) {
       created_at: new Date().toISOString(),
     });
 
-    // Link claim_token
+    // Link claim_token in BOTH tables (naming init-claim writes to bazi_claim_tokens)
     if (claimToken) {
-      const { error: tokenErr } = await db
+      // 1) Shared claim_tokens (for chinese-name polling fallback)
+      const { error: sharedErr } = await db
         .from("claim_tokens")
         .update({ email: normalizedEmail, status: "verified" })
         .eq("token", claimToken)
         .eq("status", "pending");
 
-      if (tokenErr) {
-        console.error("Failed to link claim_token:", tokenErr);
+      // 2) bazi_claim_tokens (primary, where init-claim writes)
+      const { error: baziErr } = await db
+        .from(TABLES.claimTokens)
+        .update({ email: normalizedEmail, status: "verified" })
+        .eq("token", claimToken)
+        .eq("status", "pending");
+
+      if (sharedErr && baziErr) {
+        console.error("Failed to link claim_token in both tables:", { sharedErr, baziErr });
       } else {
         console.log(`Gumroad Ping: linked claim_token ${claimToken.slice(0, 8)}... to ${normalizedEmail}`);
       }

@@ -40,10 +40,9 @@ export async function POST(request: NextRequest) {
     }
 
     // Also write to shared claim_tokens so the Gumroad webhook can find it.
-    // Only set fields that match the chinese-name schema: token, status, chart_id.
+    // Note: shared claim_tokens may NOT have a chart_id column — only write token + status.
     const { error: sharedErr } = await db.from("claim_tokens").insert({
       token,
-      chart_id: contentId,
       status: "pending",
     });
 
