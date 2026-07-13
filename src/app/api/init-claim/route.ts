@@ -16,10 +16,11 @@ import crypto from "crypto";
 export async function POST(request: NextRequest) {
   try {
     const db = requireSupabaseAdmin();
-    const { chartId } = await request.json();
+    const { chartId, nameId } = await request.json();
+    const contentId = chartId || nameId;
 
-    if (!chartId || typeof chartId !== "string") {
-      return NextResponse.json({ error: "chartId is required" }, { status: 400 });
+    if (!contentId || typeof contentId !== "string") {
+      return NextResponse.json({ error: "chartId or nameId is required" }, { status: 400 });
     }
 
     const token = crypto.randomBytes(24).toString("hex");
@@ -28,7 +29,7 @@ export async function POST(request: NextRequest) {
     // Write to bazi_claim_tokens (primary)
     const { error: baziErr } = await db.from(TABLES.claimTokens).insert({
       token,
-      chart_id: chartId,
+      chart_id: contentId,
       status: "pending",
       expires_at: expiresAt,
     });
@@ -42,7 +43,7 @@ export async function POST(request: NextRequest) {
     // Only set fields that match the chinese-name schema: token, status, chart_id.
     const { error: sharedErr } = await db.from("claim_tokens").insert({
       token,
-      chart_id: chartId,
+      chart_id: contentId,
       status: "pending",
     });
 

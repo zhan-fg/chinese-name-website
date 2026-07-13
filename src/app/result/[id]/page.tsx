@@ -82,7 +82,7 @@ export default function ResultPage() {
   // ─── Polling ─────────────────────────────────────────────
 
   const getClaimToken = (): string => {
-    try { return sessionStorage.getItem("bazi-claim-token") || ""; } catch { return ""; }
+    try { return localStorage.getItem("bazi-claim-token") || ""; } catch { return ""; }
   };
 
   useEffect(() => {
@@ -135,7 +135,7 @@ export default function ResultPage() {
       });
       const d = await res.json();
       if (res.ok && d.success) {
-        sessionStorage.removeItem("bazi-claim-token");
+        localStorage.removeItem("bazi-claim-token");
         saveUnlock();
         onUnlocked(userEmail);
       } else {
@@ -178,7 +178,7 @@ export default function ResultPage() {
       });
       const tokenData = await tokenRes.json();
       if (tokenData.token) {
-        sessionStorage.setItem("bazi-claim-token", tokenData.token);
+        localStorage.setItem("bazi-claim-token", tokenData.token);
         const gumroadUrl = new URL(GUMROAD_PRODUCT_URL);
         gumroadUrl.searchParams.set("claim_token", tokenData.token);
         window.open(gumroadUrl.toString(), "_blank", "noopener,noreferrer");
