@@ -4,7 +4,7 @@
   "private": true,
   "scripts": {
     "dev": "next dev",
-    "copy-calc-deps": "node -e \"const{cpSync,mkdirSync}=require('fs');const{join,dirname}=require('path');[['node_modules/lunar-typescript','calculator/node_modules/lunar-typescript'],['calculator/dist/yiqi-core','src/lib/calculator/yiqi-core'],['calculator/dist/bazi-enrich','src/lib/calculator/bazi-enrich']].forEach(([s,d])=>{mkdirSync(dirname(d),{recursive:true});cpSync(s,d,{recursive:true})});console.log('calc deps copied')\"",
+    "copy-calc-deps": "node -e \"const{cpSync,mkdirSync}=require('fs');const{join,dirname}=require('path');[['node_modules/lunar-typescript','calculator/node_modules/lunar-typescript'],['calculator/dist/yiqi-core','src/lib/calculator/yiqi-core'],['calculator/dist/bazi-enrich','src/lib/calculator/bazi-enrich'],['src/lib/glossary.json','calculator/lib/glossary.json']].forEach(([s,d])=>{mkdirSync(dirname(d),{recursive:true});cpSync(s,d,{recursive:true})});console.log('calc deps copied')\"",
     "prebuild": "npm run copy-calc-deps",
     "build": "npm run copy-calc-deps && next build",
     "start": "next start",

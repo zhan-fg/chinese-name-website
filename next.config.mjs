@@ -15,6 +15,7 @@ const nextConfig = {
       "/api/poster-image": [
         "./calculator/dist/**/*.js",
         "./calculator/node_modules/**/*",
+        "./calculator/lib/**/*.json",
         "./templates/**/*.html",
         "./src/lib/glossary.json",
       ],
