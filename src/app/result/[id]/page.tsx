@@ -33,6 +33,7 @@ export default function ResultPage() {
   const qrRef = useRef<HTMLCanvasElement>(null);
   const pollCount = useRef(0);
   const maxPolls = 30; // 30 × 2s = 60s timeout
+  const pendingEmailRef = useRef<string>("");  // email from auto-claim, avoids stale closure
 
   // ─── Load chart data ─────────────────────────────────────
 
@@ -233,13 +234,15 @@ export default function ResultPage() {
 
   // ─── Generate reading ───────────────────────────────────
 
-  const onUnlocked = useCallback((_userEmail: string) => {
+  const onUnlocked = useCallback((userEmail: string) => {
+    pendingEmailRef.current = userEmail;
     setPhase("generating");
   }, []);
 
   useEffect(() => {
     if (phase === "generating" && data) {
-      generateReading(email);
+      const userEmail = pendingEmailRef.current || email;
+      generateReading(userEmail);
     }
   }, [phase, data, email]);
 
