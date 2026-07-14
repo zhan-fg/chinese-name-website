@@ -129,26 +129,33 @@ export async function POST(request: NextRequest) {
       created_at: new Date().toISOString(),
     });
 
-    // Link claim_token in BOTH tables (naming init-claim writes to bazi_claim_tokens)
+    // Link claim_token in BOTH tables
     if (claimToken) {
-      // 1) Shared claim_tokens (for chinese-name polling fallback)
-      const { error: sharedErr } = await db
+      let linked = false;
+      // 1) Shared claim_tokens
+      const { error: sErr, count: sCount } = await db
         .from("claim_tokens")
         .update({ email: normalizedEmail, status: "verified" })
         .eq("token", claimToken)
-        .eq("status", "pending");
+        .eq("status", "pending")
+        .select("id");
 
-      // 2) bazi_claim_tokens (primary, where init-claim writes)
-      const { error: baziErr } = await db
+      if (!sErr && sCount) linked = true;
+
+      // 2) bazi_claim_tokens (primary)
+      const { error: bErr, count: bCount } = await db
         .from(TABLES.claimTokens)
         .update({ email: normalizedEmail, status: "verified" })
         .eq("token", claimToken)
-        .eq("status", "pending");
+        .eq("status", "pending")
+        .select("id");
 
-      if (sharedErr && baziErr) {
-        console.error("Failed to link claim_token in both tables:", { sharedErr, baziErr });
+      if (!bErr && bCount) linked = true;
+
+      if (!linked) {
+        console.warn(`[webhook naming] claim_token NOT FOUND in either table: ${claimToken.slice(0,8)}... — may already be claimed or expired`);
       } else {
-        console.log(`Gumroad Ping: linked claim_token ${claimToken.slice(0, 8)}... to ${normalizedEmail}`);
+        console.log(`[webhook naming] claim_token VERIFIED: ${claimToken.slice(0,8)}... → ${normalizedEmail} (shared=${!!sCount} bazi=${!!bCount})`);
       }
     }
 
@@ -285,17 +292,22 @@ async function handleBaziPurchase(
 
   // Link claim_token (bazi table)
   if (claimToken) {
-    const { error: tokenErr } = await db
+    const { error: tokenErr, count } = await db
       .from(TABLES.claimTokens)
       .update({ email, status: "verified" })
       .eq("token", claimToken)
-      .eq("status", "pending");
+      .eq("status", "pending")
+      .select("id");
 
     if (tokenErr) {
-      console.error("Failed to link bazi claim_token:", tokenErr);
+      console.error(`[webhook bazi] claim_token update FAILED: ${tokenErr.message}`, tokenErr);
+    } else if (!count) {
+      console.warn(`[webhook bazi] claim_token NOT FOUND in bazi_claim_tokens: ${claimToken.slice(0,8)}... — may already be claimed or expired`);
     } else {
-      console.log(`Gumroad Ping (bazi): linked claim_token to ${email}`);
+      console.log(`[webhook bazi] claim_token VERIFIED: ${claimToken.slice(0,8)}... → ${email}`);
     }
+  } else {
+    console.log(`[webhook bazi] NO claim_token in ping for ${email}`);
   }
 
   console.log(`Gumroad Ping (bazi): ${reportUnlocks} unlocks for ${email} (${productName})`);
