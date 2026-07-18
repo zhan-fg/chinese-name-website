@@ -131,31 +131,74 @@ export async function POST(request: NextRequest) {
 
     // Link claim_token in BOTH tables
     if (claimToken) {
-      let linked = false;
-      // 1) Shared claim_tokens
-      const { error: sErr, count: sCount } = await db
-        .from("claim_tokens")
-        .update({ email: normalizedEmail, status: "verified" })
-        .eq("token", claimToken)
-        .eq("status", "pending")
-        .select("id");
+      console.log(`[webhook naming] attempting to link: ${claimToken.slice(0,8)}...`);
 
-      if (!sErr && sCount) linked = true;
-
-      // 2) bazi_claim_tokens (primary)
-      const { error: bErr, count: bCount } = await db
+      // Pre-check bazi_claim_tokens
+      const { data: preBazi } = await db
         .from(TABLES.claimTokens)
-        .update({ email: normalizedEmail, status: "verified" })
+        .select("id, status")
         .eq("token", claimToken)
-        .eq("status", "pending")
-        .select("id");
+        .maybeSingle();
 
-      if (!bErr && bCount) linked = true;
+      console.log(`[webhook naming] pre-check bazi: exists=${!!preBazi} status=${preBazi?.status || "N/A"}`);
+
+      let linked = false;
+
+      // 1) Update bazi_claim_tokens (primary — init-claim always writes here)
+      if (preBazi && preBazi.status === "pending") {
+        const { error: bErr, count: bCount } = await db
+          .from(TABLES.claimTokens)
+          .update({ email: normalizedEmail, status: "verified" })
+          .eq("token", claimToken)
+          .eq("status", "pending")
+          .select("id");
+
+        if (!bErr && bCount) {
+          linked = true;
+          console.log(`[webhook naming] bazi_claim_tokens VERIFIED (${bCount} row)`);
+        } else {
+          console.warn(`[webhook naming] bazi_claim_tokens update: err=${!!bErr} count=${bCount}`);
+        }
+      }
+
+      // 2) Try shared claim_tokens
+      const { data: preShared } = await db
+        .from("claim_tokens")
+        .select("id, status")
+        .eq("token", claimToken)
+        .maybeSingle();
+
+      if (preShared && preShared.status === "pending") {
+        const { error: sErr } = await db
+          .from("claim_tokens")
+          .update({ email: normalizedEmail, status: "verified" })
+          .eq("token", claimToken)
+          .eq("status", "pending");
+
+        if (!sErr) {
+          linked = true;
+          console.log(`[webhook naming] shared claim_tokens VERIFIED`);
+        }
+      } else if (!preShared) {
+        // Token doesn't exist in shared — try INSERT (init-claim shared insert may have failed)
+        console.log(`[webhook naming] token not in shared claim_tokens, trying insert`);
+        const { error: insErr } = await db.from("claim_tokens").insert({
+          token: claimToken,
+          email: normalizedEmail,
+          status: "verified",
+        });
+        if (!insErr) {
+          linked = true;
+          console.log(`[webhook naming] shared claim_tokens INSERTED + VERIFIED`);
+        } else {
+          console.warn(`[webhook naming] shared insert failed: ${insErr.message}`);
+        }
+      }
 
       if (!linked) {
-        console.warn(`[webhook naming] claim_token NOT FOUND in either table: ${claimToken.slice(0,8)}... — may already be claimed or expired`);
+        console.warn(`[webhook naming] FAILED to link claim_token ${claimToken.slice(0,8)}...`);
       } else {
-        console.log(`[webhook naming] claim_token VERIFIED: ${claimToken.slice(0,8)}... → ${normalizedEmail} (shared=${!!sCount} bazi=${!!bCount})`);
+        console.log(`[webhook naming] DONE: ${claimToken.slice(0,8)}... → ${normalizedEmail}`);
       }
     }
 
@@ -292,22 +335,43 @@ async function handleBaziPurchase(
 
   // Link claim_token (bazi table)
   if (claimToken) {
-    const { error: tokenErr, count } = await db
-      .from(TABLES.claimTokens)
-      .update({ email, status: "verified" })
-      .eq("token", claimToken)
-      .eq("status", "pending")
-      .select("id");
+    console.log(`[webhook bazi] attempting to link claim_token: ${claimToken.slice(0,8)}...`);
 
-    if (tokenErr) {
-      console.error(`[webhook bazi] claim_token update FAILED: ${tokenErr.message}`, tokenErr);
-    } else if (!count) {
-      console.warn(`[webhook bazi] claim_token NOT FOUND in bazi_claim_tokens: ${claimToken.slice(0,8)}... — may already be claimed or expired`);
+    // First: check if token exists at all
+    const { data: preCheck } = await db
+      .from(TABLES.claimTokens)
+      .select("id, status")
+      .eq("token", claimToken)
+      .maybeSingle();
+
+    console.log(`[webhook bazi] pre-check: token exists=${!!preCheck} status=${preCheck?.status || "N/A"}`);
+
+    if (!preCheck) {
+      console.error(`[webhook bazi] TOKEN NOT IN DB: ${claimToken.slice(0,8)}... — init-claim may have failed or token expired`);
     } else {
-      console.log(`[webhook bazi] claim_token VERIFIED: ${claimToken.slice(0,8)}... → ${email}`);
+      const { error: tokenErr, count } = await db
+        .from(TABLES.claimTokens)
+        .update({ email, status: "verified" })
+        .eq("token", claimToken)
+        .eq("status", "pending")
+        .select("id");
+
+      if (tokenErr) {
+        console.error(`[webhook bazi] UPDATE FAILED: ${tokenErr.message}`, tokenErr);
+      } else if (!count) {
+        console.warn(`[webhook bazi] UPDATE no rows — token status was '${preCheck.status}', not 'pending'`);
+      } else {
+        console.log(`[webhook bazi] VERIFIED: ${claimToken.slice(0,8)}... → ${email}`);
+
+        // Verify the update stuck
+        const { data: verify } = await db
+          .from(TABLES.claimTokens)
+          .select("status, email")
+          .eq("token", claimToken)
+          .single();
+        console.log(`[webhook bazi] verify: status=${verify?.status} email=${verify?.email}`);
+      }
     }
-  } else {
-    console.log(`[webhook bazi] NO claim_token in ping for ${email}`);
   }
 
   console.log(`Gumroad Ping (bazi): ${reportUnlocks} unlocks for ${email} (${productName})`);
