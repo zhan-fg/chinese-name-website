@@ -17,6 +17,8 @@ interface Props {
  * Polls /api/claim-status to check if Gumroad Ping has verified the payment.
  * When verified, auto-claims without asking for email.
  * If polling times out, falls back to manual email input.
+ *
+ * Uses sessionStorage for claim tokens so different tabs don't interfere.
  */
 export default function InlineClaim({ nameId, nameData, onSuccess, onClose }: Props) {
   const [phase, setPhase] = useState<"polling" | "manual" | "claiming" | "done">("polling");
@@ -29,6 +31,19 @@ export default function InlineClaim({ nameId, nameData, onSuccess, onClose }: Pr
   const displayName = nameId.includes("-")
     ? nameId.slice(0, nameId.lastIndexOf("-"))
     : nameId;
+
+  const clearPendingState = () => {
+    try {
+      localStorage.removeItem("shan-pending-unlock");
+      localStorage.removeItem("shan-claim-token");
+      sessionStorage.removeItem("shan-claim-token");
+    } catch {}
+  };
+
+  const handleClose = () => {
+    clearPendingState();
+    onClose();
+  };
 
   // Poll for Gumroad Ping verification
   useEffect(() => {
@@ -47,25 +62,25 @@ export default function InlineClaim({ nameId, nameData, onSuccess, onClose }: Pr
         const data = await res.json();
 
         if (data.status === "verified") {
-          // Gumroad Ping has verified this payment — auto-claim!
           setEmail(data.email || "");
           setPhase("claiming");
           doClaim(data.email || "", token);
         } else if (data.status === "claimed") {
-          // Already claimed (unusual but possible)
           onSuccess();
           setPhase("done");
         } else if (data.status === "not_found" || pollCount.current >= maxPolls) {
-          // Timeout — fall back to manual email input
           setPhase("manual");
+          clearPendingState();
         }
-        // "pending" → keep polling
       } catch {
-        if (pollCount.current >= maxPolls) setPhase("manual");
+        if (pollCount.current >= maxPolls) {
+          setPhase("manual");
+          clearPendingState();
+        }
       }
     };
 
-    poll(); // First poll immediately
+    poll();
     const interval = setInterval(poll, 2000);
     return () => clearInterval(interval);
   }, [phase, nameId, onSuccess]);
@@ -86,7 +101,6 @@ export default function InlineClaim({ nameId, nameData, onSuccess, onClose }: Pr
       const data = await res.json();
 
       if (res.ok && data.success) {
-        // Update localStorage
         try {
           const stored = localStorage.getItem("shan-unlocked");
           const unlocked = stored ? JSON.parse(stored) : [];
@@ -96,9 +110,9 @@ export default function InlineClaim({ nameId, nameData, onSuccess, onClose }: Pr
           }
           localStorage.removeItem("shan-pending-unlock");
           localStorage.removeItem("shan-claim-token");
+          sessionStorage.removeItem("shan-claim-token");
         } catch {}
 
-        // Save the full report to Supabase for cross-device recovery
         if (nameData && userEmail) {
           fetch("/api/save-report", {
             method: "POST",
@@ -137,7 +151,7 @@ export default function InlineClaim({ nameId, nameData, onSuccess, onClose }: Pr
         animate={{ opacity: 1 }}
         exit={{ opacity: 0 }}
         className="fixed inset-0 z-50 bg-black/40 flex items-end sm:items-center justify-center p-4"
-        onClick={onClose}
+        onClick={handleClose}
       >
         <motion.div
           initial={{ y: 100, opacity: 0 }}
@@ -204,7 +218,7 @@ export default function InlineClaim({ nameId, nameData, onSuccess, onClose }: Pr
 
           {phase !== "polling" && (
             <button
-              onClick={onClose}
+              onClick={handleClose}
               className="w-full py-2 text-xs text-text-secondary hover:text-text-primary transition-colors"
             >
               Not now
@@ -218,7 +232,7 @@ export default function InlineClaim({ nameId, nameData, onSuccess, onClose }: Pr
 
 function getToken(): string {
   try {
-    return localStorage.getItem("shan-claim-token") || "";
+    return sessionStorage.getItem("shan-claim-token") || "";
   } catch {
     return "";
   }

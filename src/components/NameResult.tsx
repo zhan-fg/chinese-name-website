@@ -262,6 +262,7 @@ export default function NameResult({
       if (data.token) {
         claimToken = data.token;
         localStorage.setItem("shan-claim-token", claimToken);
+        sessionStorage.setItem("shan-claim-token", claimToken);
       }
     } catch {
       console.error("Failed to get claim token");
