@@ -83,7 +83,7 @@ export default function ResultPage() {
   // ─── Polling ─────────────────────────────────────────────
 
   const getClaimToken = (): string => {
-    try { return sessionStorage.getItem("bazi-claim-token") || ""; } catch { return ""; }
+    try { return sessionStorage.getItem("bazi-claim-token") || localStorage.getItem("bazi-claim-token") || ""; } catch { return ""; }
   };
 
   useEffect(() => {

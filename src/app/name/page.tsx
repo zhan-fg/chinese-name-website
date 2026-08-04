@@ -86,6 +86,16 @@ export default function Home() {
     return () => window.removeEventListener("storage", handleStorage);
   }, []);
 
+  // Check for pending unlock on mount (user may have left/returned)
+  useEffect(() => {
+    try {
+      const pending = localStorage.getItem("shan-pending-unlock");
+      if (pending && !unlockedNamesRef.current.has(pending)) {
+        setInlineClaimNameId(pending);
+      }
+    } catch {}
+  }, []);
+
   // When user returns to this tab (after Gumroad payment), re-check localStorage
   useEffect(() => {
     const handleFocus = () => {

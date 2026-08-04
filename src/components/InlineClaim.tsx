@@ -232,7 +232,7 @@ export default function InlineClaim({ nameId, nameData, onSuccess, onClose }: Pr
 
 function getToken(): string {
   try {
-    return sessionStorage.getItem("shan-claim-token") || "";
+    return sessionStorage.getItem("shan-claim-token") || localStorage.getItem("shan-claim-token") || "";
   } catch {
     return "";
   }
