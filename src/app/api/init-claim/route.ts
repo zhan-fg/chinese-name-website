@@ -40,10 +40,12 @@ export async function POST(request: NextRequest) {
     }
 
     // Also write to shared claim_tokens so the Gumroad webhook can find it.
-    // Note: shared claim_tokens may NOT have a chart_id column — only write token + status.
+    // Shared schema: token, name_id (NOT NULL), status, email, expires_at (NOT NULL).
     const { error: sharedErr } = await db.from("claim_tokens").insert({
       token,
+      name_id: contentId,
       status: "pending",
+      expires_at: expiresAt,
     });
 
     if (sharedErr) {
