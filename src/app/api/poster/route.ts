@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getChart } from '@/lib/storage';
+import { getChartPersistent } from '@/lib/storage';
 
 export async function GET(request: NextRequest) {
   const id = request.nextUrl.searchParams.get('id');
@@ -7,7 +7,7 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ error: 'Missing id parameter' }, { status: 400 });
   }
 
-  const data = getChart(id);
+  const data = await getChartPersistent(id);
   if (!data) {
     return NextResponse.json({ error: 'Chart not found' }, { status: 404 });
   }

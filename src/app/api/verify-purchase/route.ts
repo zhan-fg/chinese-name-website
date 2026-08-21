@@ -22,45 +22,43 @@ export async function POST(request: NextRequest) {
     const normalizedEmail = authUser.email;
 
     // 1. Get or create user
-    const { data: user } = await db
+    const { data: user, error: userError } = await db
       .from(TABLES.users)
-      .select("id, report_unlocks_remaining, unlocked_charts, last_credited_at")
+      .select("id, auth_user_id, report_unlocks_remaining, unlocked_charts")
       .eq("email", normalizedEmail)
-      .eq("auth_user_id", authUser.id)
       .order("created_at", { ascending: false })
       .limit(1)
       .maybeSingle();
+    if (userError) throw new Error(`Failed to find purchase account: ${userError.message}`);
 
-    // 2. Count new purchases since last credit from bazi_processed_sales.
-    const lastCreditedAt = user?.last_credited_at || new Date().toISOString();
-
-    const { data: sharedSales } = await db
-      .from(TABLES.processedSales)
-      .select("sale_id, product_permalink, created_at")
-      .eq("email", normalizedEmail)
-      .gt("created_at", lastCreditedAt)
-      .order("created_at", { ascending: false });
-
-    // Filter to pyzrg purchases only
-    const newPurchases = (sharedSales || [])
-      .filter((s: any) => (s.product_permalink || "").toLowerCase().includes("pyzrg"));
-
-    const totalNew = newPurchases.length;
-
-    // 3. Apply credits
-    let reportUnlocks = user?.report_unlocks_remaining || 0;
-    if (totalNew > 0 && user) {
-      reportUnlocks += totalNew;
-      await db.from(TABLES.users)
-        .update({
-          report_unlocks_remaining: reportUnlocks,
-          last_credited_at: new Date().toISOString(),
-          updated_at: new Date().toISOString(),
-        })
+    // Gumroad Ping creates or credits the user before an account session
+    // exists. A verified email login safely links that anonymous purchase row
+    // to the Supabase account so future authenticated reads can find it.
+    if (user && user.auth_user_id !== authUser.id) {
+      const { error: linkError } = await db
+        .from(TABLES.users)
+        .update({ auth_user_id: authUser.id, updated_at: new Date().toISOString() })
         .eq("id", user.id);
-    } else if (totalNew > 0 && !user) {
+      if (linkError) throw new Error(`Failed to link purchase account: ${linkError.message}`);
+    }
+
+    // Webhook processing already grants credits. Do not recount sales for an
+    // existing user here or the same purchase would be credited twice.
+    let reportUnlocks = user?.report_unlocks_remaining || 0;
+    if (!user) {
+      // Recovery for historical sales created before bazi_users was populated.
+      const { data: sharedSales, error: salesError } = await db
+        .from(TABLES.processedSales)
+        .select("sale_id, product_permalink")
+        .eq("email", normalizedEmail);
+      if (salesError) throw new Error(`Failed to find purchases: ${salesError.message}`);
+
+      const totalNew = (sharedSales || [])
+        .filter((s: any) => (s.product_permalink || "").toLowerCase().includes("pyzrg"))
+        .length;
       reportUnlocks = totalNew;
-      const { data: _newUser } = await db.from(TABLES.users)
+      if (totalNew > 0) {
+        const { error: createError } = await db.from(TABLES.users)
         .insert({
           anonymous_id: `gsale-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
           auth_user_id: authUser.id,
@@ -70,12 +68,12 @@ export async function POST(request: NextRequest) {
           unlocked_charts: [],
           last_credited_at: new Date().toISOString(),
           subscription_status: "none",
-        })
-        .select("id")
-        .single();
+        });
+        if (createError) throw new Error(`Failed to recover purchase account: ${createError.message}`);
+      }
     }
 
-    // 4. Check access: user needs either remaining unlocks or chart already unlocked
+    // Check access: user needs either remaining unlocks or chart already unlocked
     const unlockedCharts: string[] = user?.unlocked_charts || [];
     if (reportUnlocks <= 0 && !unlockedCharts.includes(chartId)) {
       return NextResponse.json({

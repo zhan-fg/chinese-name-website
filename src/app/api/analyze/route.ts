@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getChart, saveAnalysis, getAnalysis } from '@/lib/storage';
+import { getChartPersistent, saveAnalysis, getAnalysis } from '@/lib/storage';
 import { generateAnalysis, isLLMConfigured } from '@/lib/llm';
 import fs from 'fs';
 import path from 'path';
@@ -24,7 +24,7 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ error: 'LLM not configured. Set LLM_API_KEY env var.' }, { status: 503 });
   }
 
-  const data = getChart(id);
+  const data = await getChartPersistent(id);
   if (!data) {
     return NextResponse.json({ error: 'Chart not found' }, { status: 404 });
   }

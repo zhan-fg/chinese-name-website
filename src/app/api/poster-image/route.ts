@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getChart } from '@/lib/storage';
+import { getChartPersistent } from '@/lib/storage';
 import { renderPosterHTML } from '@/lib/chart';
 import { generateAnalysis } from '@/lib/analysis';
 
@@ -13,7 +13,7 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ error: 'Missing id parameter' }, { status: 400 });
   }
 
-  const data = getChart(id);
+  const data = await getChartPersistent(id);
   if (!data) {
     return NextResponse.json({ error: 'Chart not found' }, { status: 404 });
   }

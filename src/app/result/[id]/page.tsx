@@ -21,7 +21,7 @@ export default function ResultPage() {
   const [error, setError] = useState("");
   const [posterHTML, setPosterHTML] = useState("");
 
-  const [phase, setPhase] = useState<"init" | "polling" | "manual" | "claiming" | "unlocked" | "generating" | "done">("init");
+  const [phase, setPhase] = useState<"init" | "polling" | "manual" | "claiming" | "generating" | "done">("init");
   const [email, setEmail] = useState("");
   const [claimError, setClaimError] = useState("");
   const [analysis, setAnalysis] = useState("");
@@ -34,7 +34,7 @@ export default function ResultPage() {
   const qrRef = useRef<HTMLCanvasElement>(null);
   const pollCount = useRef(0);
   const maxPolls = 150; // allow up to five minutes to complete checkout
-  const pendingEmailRef = useRef<string>("");  // email from auto-claim, avoids stale closure
+  const pendingClaimTokenRef = useRef<string>("");
 
   // ─── Load chart data ─────────────────────────────────────
 
@@ -65,7 +65,17 @@ export default function ResultPage() {
     if (!id) return;
     try {
       const unlocked = JSON.parse(localStorage.getItem("bazi-unlocked") || "[]");
-      if (unlocked.includes(id)) setPhase("unlocked");
+      if (unlocked.includes(id)) {
+        const token = sessionStorage.getItem("bazi-claim-token") || localStorage.getItem("bazi-claim-token") || "";
+        if (token) {
+          pendingClaimTokenRef.current = token;
+          setPhase("generating");
+        } else {
+          // A local marker alone is not proof of purchase. Fall back to the
+          // authenticated email recovery flow when the one-time token is gone.
+          setPhase("manual");
+        }
+      }
     } catch {}
   }, [id]);
 
@@ -107,6 +117,7 @@ export default function ResultPage() {
           setEmail(d.email || "");
           await doAutoClaim(d.email || "", token);
         } else if (d.status === "claimed") {
+          pendingClaimTokenRef.current = token;
           saveUnlock();
           setPhase("generating");
         } else if (d.status === "not_found" || pollCount.current >= maxPolls) {
@@ -137,9 +148,9 @@ export default function ResultPage() {
       });
       const d = await res.json();
       if (res.ok && d.success) {
-        sessionStorage.removeItem("bazi-claim-token");
+        pendingClaimTokenRef.current = token;
         saveUnlock();
-        onUnlocked(userEmail);
+        onUnlocked(token);
       } else {
         setClaimError(d.error || "Claim failed");
         setPhase("manual");
@@ -229,7 +240,7 @@ export default function ResultPage() {
       if (d.verified) {
         setEmail(userEmail);
         saveUnlock();
-        onUnlocked(userEmail);
+        onUnlocked();
         return;
       }
       setClaimError(d.error || "No purchase found. Use the same email as your Gumroad purchase.");
@@ -252,34 +263,38 @@ export default function ResultPage() {
 
   // ─── Generate reading ───────────────────────────────────
 
-  const onUnlocked = useCallback((userEmail: string) => {
-    pendingEmailRef.current = userEmail;
+  const onUnlocked = useCallback((claimToken = "") => {
+    pendingClaimTokenRef.current = claimToken;
     setPhase("generating");
   }, []);
 
   useEffect(() => {
     if (phase === "generating" && data) {
-      const userEmail = pendingEmailRef.current || email;
-      generateReading(userEmail);
+      generateReading();
     }
-  }, [phase, data, email]);
+  }, [phase, data]);
 
-  const generateReading = async (userEmail: string) => {
+  const generateReading = async () => {
     try {
-      const res = await authenticatedFetch("/api/generate-reading", {
+      const claimToken = pendingClaimTokenRef.current;
+      const requestInit = {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           chartId: id,
-          email: userEmail,
-          chartText: data?.chartText,
-          chart: data?.chart,
+          claimToken: claimToken || undefined,
           birthInfo: data?.birthInfo,
         }),
-      });
+      };
+      const res = claimToken
+        ? await fetch("/api/generate-reading", requestInit)
+        : await authenticatedFetch("/api/generate-reading", requestInit);
       const d = await res.json();
       if (res.ok && d.analysis) {
         setAnalysis(d.analysis);
+        sessionStorage.removeItem("bazi-claim-token");
+        localStorage.removeItem("bazi-claim-token");
+        pendingClaimTokenRef.current = "";
       } else {
         setAnalysis(`Error: ${d.error || "Failed to generate reading"}`);
       }
@@ -533,23 +548,6 @@ export default function ResultPage() {
           </div>
         )}
 
-        {phase === "unlocked" && (
-          <div className="text-center space-y-3">
-            <p className="text-stone-500 text-sm">This chart is unlocked. Enter your email to generate your reading.</p>
-            <div className="flex gap-2 max-w-sm mx-auto">
-              <input type="email" value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                placeholder="you@email.com"
-                className="flex-1 px-4 py-2.5 border border-stone-300 rounded-lg text-sm focus:ring-2 focus:ring-amber-500 focus:border-transparent"
-                autoFocus />
-              <button onClick={() => { setPhase("generating"); }}
-                disabled={!email.trim()}
-                className="px-6 py-2.5 rounded-lg bg-amber-600 text-white text-sm font-medium hover:bg-amber-700 disabled:opacity-50 transition">
-                Generate
-              </button>
-            </div>
-          </div>
-        )}
       </div>
 
       <p className="text-center text-xs text-stone-400 pb-8">

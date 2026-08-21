@@ -2,7 +2,8 @@ export const dynamic = "force-dynamic";
 
 import { NextRequest, NextResponse } from "next/server";
 import { requireSupabaseAdmin, TABLES } from "@/lib/supabase";
-import { getChart } from "@/lib/storage";
+import { getChartPersistent, saveChartPersistent } from "@/lib/storage";
+import { runChart } from "@/lib/chart";
 import { generateAnalysis, isLLMConfigured } from "@/lib/llm";
 import fs from "fs";
 import path from "path";
@@ -14,36 +15,79 @@ import { isUnauthorized, requireAuthenticatedUser } from "@/lib/auth";
  * Generates a full Bazi+Ziwei combined reading using DeepSeek API.
  * Requires the user to have unlocked this chart.
  *
- * Body: chartId, email, + chartText/chart/birthInfo (optional — passed from
- * client to avoid relying on local file storage in serverless environments).
+ * Body: chartId plus either a Supabase bearer session or a claimed one-time
+ * claimToken tied to that exact chart.
  */
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const authUser = await requireAuthenticatedUser(request);
-    const { chartId } = body;
+    const { chartId, claimToken } = body;
 
     if (!chartId || typeof chartId !== "string" || !/^[a-zA-Z0-9_-]{1,64}$/.test(chartId)) {
       return NextResponse.json({ error: "A valid chartId is required" }, { status: 400 });
     }
 
-    const normalizedEmail = authUser.email;
     const db = requireSupabaseAdmin();
 
+    // Normal account sessions remain supported. The seamless Gumroad flow has
+    // no Supabase login session, so a claimed one-time token may authorize only
+    // the exact chart attached to that purchase.
+    let authUser: Awaited<ReturnType<typeof requireAuthenticatedUser>> | null = null;
+    try {
+      authUser = await requireAuthenticatedUser(request);
+    } catch (error) {
+      if (!isUnauthorized(error)) throw error;
+    }
+
+    let normalizedEmail = authUser?.email || "";
+    let claimAuthorized = false;
+    if (!authUser) {
+      if (typeof claimToken !== "string" || !/^[a-f0-9]{64}$/.test(claimToken)) {
+        return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+      }
+
+      const { data: claim, error: claimError } = await db
+        .from(TABLES.claimTokens)
+        .select("email, chart_id, status, expires_at")
+        .eq("token", claimToken)
+        .eq("chart_id", chartId)
+        .eq("status", "claimed")
+        .maybeSingle();
+
+      if (claimError) throw new Error(`Failed to verify claim: ${claimError.message}`);
+      if (!claim?.email || new Date(claim.expires_at) < new Date()) {
+        return NextResponse.json({ error: "Invalid or expired claim token" }, { status: 401 });
+      }
+
+      normalizedEmail = claim.email.toLowerCase().trim();
+      claimAuthorized = true;
+    }
+
     // Verify user has unlocked this chart
-    const { data: user } = await db
-      .from(TABLES.users)
-      .select("id, unlocked_charts, report_unlocks_remaining")
-      .eq("email", normalizedEmail)
-      .eq("auth_user_id", authUser.id)
-      .order("created_at", { ascending: false })
-      .limit(1)
-      .single();
+    const userResult = authUser
+      ? await db
+          .from(TABLES.users)
+          .select("id, unlocked_charts, report_unlocks_remaining")
+          .eq("email", normalizedEmail)
+          .eq("auth_user_id", authUser.id)
+          .order("created_at", { ascending: false })
+          .limit(1)
+          .maybeSingle()
+      : await db
+          .from(TABLES.users)
+          .select("id, unlocked_charts, report_unlocks_remaining")
+          .eq("email", normalizedEmail)
+          .order("created_at", { ascending: false })
+          .limit(1)
+          .maybeSingle();
+
+    if (userResult.error) throw new Error(`Failed to verify entitlement: ${userResult.error.message}`);
+    const user = userResult.data;
 
     const unlockedCharts: string[] = user?.unlocked_charts || [];
     const hasMoreUnlocks = (user?.report_unlocks_remaining || 0) > 0;
 
-    if (!user || (!unlockedCharts.includes(chartId) && !hasMoreUnlocks)) {
+    if (!user || (!claimAuthorized && !unlockedCharts.includes(chartId) && !hasMoreUnlocks)) {
       return NextResponse.json(
         { error: "Chart not unlocked. Please complete payment first." },
         { status: 403 }
@@ -51,11 +95,12 @@ export async function POST(request: NextRequest) {
     }
 
     // Check Supabase cache first
-    const { data: cached } = await db
+    const { data: cached, error: cacheLookupError } = await db
       .from(TABLES.chartCache)
-      .select("analysis_text")
+      .select("analysis_text, chart_data")
       .eq("chart_id", chartId)
       .maybeSingle();
+    if (cacheLookupError) throw new Error(`Failed to load chart cache: ${cacheLookupError.message}`);
 
     if (cached?.analysis_text) {
       await consumeUnlockIfNeeded(db, user, chartId, unlockedCharts);
@@ -63,9 +108,21 @@ export async function POST(request: NextRequest) {
     }
 
     // Server data is authoritative. Never accept client-supplied chart text.
-    const data: any = getChart(chartId);
+    let data: any = cached?.chart_data || await getChartPersistent(chartId);
     if (!data) {
-      return NextResponse.json({ error: "Chart data not found" }, { status: 404 });
+      const birthInfo = normalizeBirthInfo(body.birthInfo);
+      if (!birthInfo) {
+        return NextResponse.json({ error: "Chart data not found" }, { status: 404 });
+      }
+
+      const recomputed = runChart(birthInfo);
+      data = {
+        birthInfo,
+        chart: recomputed.json,
+        chartText: recomputed.text,
+        createdAt: Date.now(),
+      };
+      await saveChartPersistent(chartId, data);
     }
     const textForLLM = data.chartText;
 
@@ -74,6 +131,7 @@ export async function POST(request: NextRequest) {
       const analysisChart = data.chart;
       const analysisBirthInfo = data.birthInfo;
       const text = generateAnalysisText(analysisChart, analysisBirthInfo);
+      await consumeUnlockIfNeeded(db, user, chartId, unlockedCharts);
       return NextResponse.json({ analysis: text, source: "algorithm", chartId });
     }
 
@@ -101,12 +159,13 @@ export async function POST(request: NextRequest) {
     const analysis = await generateAnalysis(systemPrompt, userMessage, { maxTokens: 8192 });
 
     // Cache result in Supabase
-    await db
+    const { error: cacheWriteError } = await db
       .from(TABLES.chartCache)
       .upsert(
         { chart_id: chartId, analysis_text: analysis, created_at: new Date().toISOString() },
         { onConflict: "chart_id" }
       );
+    if (cacheWriteError) throw new Error(`Failed to cache reading: ${cacheWriteError.message}`);
 
     // Consume one unlock if chart wasn't already unlocked
     await consumeUnlockIfNeeded(db, user, chartId, unlockedCharts);
@@ -119,6 +178,37 @@ export async function POST(request: NextRequest) {
     console.error("generate-reading error:", error);
     return NextResponse.json({ error: error.message || "Failed" }, { status: 500 });
   }
+}
+
+function normalizeBirthInfo(value: any) {
+  if (!value || typeof value !== "object") return null;
+  const year = Number(value.year);
+  const month = Number(value.month);
+  const day = Number(value.day);
+  const hour = Number(value.hour);
+  const minute = Number(value.minute);
+  const gender = value.gender;
+
+  if (
+    !Number.isInteger(year) || year < 1900 || year > 2100 ||
+    !Number.isInteger(month) || month < 1 || month > 12 ||
+    !Number.isInteger(day) || day < 1 || day > 31 ||
+    !Number.isInteger(hour) || hour < 0 || hour > 23 ||
+    !Number.isInteger(minute) || minute < 0 || minute > 59 ||
+    (gender !== "male" && gender !== "female")
+  ) {
+    return null;
+  }
+
+  return {
+    year,
+    month,
+    day,
+    hour,
+    minute,
+    gender: gender as "male" | "female",
+    isLunar: value.isLunar === true,
+  };
 }
 
 /**
@@ -136,7 +226,7 @@ async function consumeUnlockIfNeeded(
   if ((user.report_unlocks_remaining || 0) <= 0) return; // no unlocks to consume
 
   unlockedCharts.push(chartId);
-  await db
+  const { error } = await db
     .from(TABLES.users)
     .update({
       unlocked_charts: unlockedCharts,
@@ -144,4 +234,5 @@ async function consumeUnlockIfNeeded(
       updated_at: new Date().toISOString(),
     })
     .eq("id", user.id);
+  if (error) throw new Error(`Failed to consume unlock: ${error.message}`);
 }

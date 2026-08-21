@@ -150,14 +150,17 @@ export async function POST(request: NextRequest) {
     // ── Naming products (chinese-name-website) ──
 
     // Idempotency check (shared table)
-    const { data: existing } = await db
+    const { data: existing, error: existingError } = await db
       .from("processed_sales")
       .select("id")
       .eq("sale_id", saleId)
-      .single();
+      .maybeSingle();
+
+    if (existingError) throw new Error(`Failed to check processed sale: ${existingError.message}`);
 
     if (existing) {
       console.log(`Gumroad Ping: sale ${saleId} already processed`);
+      if (claimToken) await linkTokenByValue(db, "claim_tokens", claimToken, email);
       return NextResponse.json({ ok: true, deduplicated: true });
     }
 
@@ -180,13 +183,14 @@ export async function POST(request: NextRequest) {
     }
 
     // Record processed sale (shared table)
-    await db.from("processed_sales").insert({
+    const { error: saleInsertError } = await db.from("processed_sales").insert({
       sale_id: saleId,
       email,
       product_permalink: permalink,
       price,
       created_at: new Date().toISOString(),
     });
+    if (saleInsertError) throw new Error(`Failed to record sale: ${saleInsertError.message}`);
 
     // Link the naming claim token to this verified Ping.
     if (claimToken) {
@@ -205,24 +209,27 @@ export async function POST(request: NextRequest) {
 // ─── Naming product helpers (write to chinese-name "users" table) ───
 
 async function addNamingReportUnlocks(db: SupabaseClient, email: string, count: number) {
-  const { data: existing } = await db
+  const { data: existing, error: lookupError } = await db
     .from("users")
     .select("id, report_unlocks_remaining")
     .eq("email", email)
     .order("created_at", { ascending: false })
     .limit(1)
-    .single();
+    .maybeSingle();
+
+  if (lookupError) throw new Error(`Failed to find naming user: ${lookupError.message}`);
 
   if (existing) {
-    await db
+    const { error } = await db
       .from("users")
       .update({
         report_unlocks_remaining: (existing.report_unlocks_remaining || 0) + count,
         updated_at: new Date().toISOString(),
       })
       .eq("id", existing.id);
+    if (error) throw new Error(`Failed to grant naming unlock: ${error.message}`);
   } else {
-    await db.from("users").insert({
+    const { error } = await db.from("users").insert({
       anonymous_id: `gumroad-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
       email,
       free_uses_remaining: 0,
@@ -230,6 +237,7 @@ async function addNamingReportUnlocks(db: SupabaseClient, email: string, count: 
       report_unlocks_remaining: count,
       subscription_status: "none",
     });
+    if (error) throw new Error(`Failed to create naming user: ${error.message}`);
   }
 }
 // ─── Bazi-ziwei-web product handler ───────────────────────
@@ -245,14 +253,17 @@ async function handleBaziPurchase(
   claimToken: string,
 ): Promise<NextResponse> {
   // Idempotency: check bazi_processed_sales
-  const { data: existingShared } = await db
+  const { data: existingShared, error: existingError } = await db
     .from("bazi_processed_sales")
     .select("id")
     .eq("sale_id", saleId)
-    .single();
+    .maybeSingle();
+
+  if (existingError) throw new Error(`Failed to check Bazi sale: ${existingError.message}`);
 
   if (existingShared) {
     console.log(`Gumroad Ping (bazi): sale ${saleId} already processed`);
+    if (claimToken) await linkTokenByValue(db, TABLES.claimTokens, claimToken, email);
     return NextResponse.json({ ok: true, deduplicated: true, product: "bazi" });
   }
 
@@ -260,7 +271,7 @@ async function handleBaziPurchase(
   const reportUnlocks = 1;
 
   // Add unlocks to bazi_users
-  const { data: baziUser } = await db
+  const { data: baziUser, error: userLookupError } = await db
     .from(TABLES.users)
     .select("id, report_unlocks_remaining")
     .eq("email", email)
@@ -268,32 +279,37 @@ async function handleBaziPurchase(
     .limit(1)
     .maybeSingle();
 
+  if (userLookupError) throw new Error(`Failed to find Bazi user: ${userLookupError.message}`);
+
   if (baziUser) {
-    await db
+    const { error } = await db
       .from(TABLES.users)
       .update({
         report_unlocks_remaining: (baziUser.report_unlocks_remaining || 0) + reportUnlocks,
         updated_at: new Date().toISOString(),
       })
       .eq("id", baziUser.id);
+    if (error) throw new Error(`Failed to grant Bazi unlock: ${error.message}`);
   } else {
-    await db.from(TABLES.users).insert({
+    const { error } = await db.from(TABLES.users).insert({
       anonymous_id: `gumroad-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
       email,
       free_uses_remaining: 0,
       report_unlocks_remaining: reportUnlocks,
       subscription_status: "none",
     });
+    if (error) throw new Error(`Failed to create Bazi user: ${error.message}`);
   }
 
   // Record sale in bazi_processed_sales only (naming products use processed_sales)
-  await db.from("bazi_processed_sales").insert({
+  const { error: saleInsertError } = await db.from("bazi_processed_sales").insert({
     sale_id: saleId,
     email,
     product_permalink: permalink,
     price,
     created_at: new Date().toISOString(),
   });
+  if (saleInsertError) throw new Error(`Failed to record Bazi sale: ${saleInsertError.message}`);
 
   // Link claim_token (bazi table)
   if (claimToken) {
@@ -313,35 +329,37 @@ async function linkTokenByValue(
   token: string,
   email: string,
 ) {
-  const { data: preCheck } = await db
+  const { data: preCheck, error: preCheckError } = await db
     .from(table)
     .select("id, status")
     .eq("token", token)
     .maybeSingle();
 
+  if (preCheckError) throw new Error(`Failed to find claim token: ${preCheckError.message}`);
+
   console.log(`[webhook] linkToken pre-check: exists=${!!preCheck} status=${preCheck?.status || "N/A"}`);
 
   if (!preCheck) {
-    console.warn(`[webhook] token not in ${table}: ${token.slice(0,8)}...`);
+    throw new Error(`Claim token not found in ${table}`);
+  }
+
+  if (preCheck.status === "verified" || preCheck.status === "claimed") {
+    console.log(`[webhook] token already ${preCheck.status}: ${token.slice(0,8)}...`);
     return;
   }
 
-  if (preCheck.status !== "pending") {
-    console.log(`[webhook] token status is '${preCheck.status}', not pending — skipping`);
-    return;
-  }
+  if (preCheck.status !== "pending") throw new Error(`Claim token is ${preCheck.status}`);
 
-  const { error, count } = await db
+  const { data: updated, error } = await db
     .from(table)
     .update({ email, status: "verified" })
     .eq("token", token)
     .eq("status", "pending")
-    .select("id");
+    .select("id")
+    .maybeSingle();
 
-  if (error) {
-    console.error(`[webhook] UPDATE ${table} FAILED: ${error.message}`);
-  } else if (count) {
-    console.log(`[webhook] VERIFIED ${table}: ${token.slice(0,8)}... → ${email} (${count} row)`);
-  }
+  if (error) throw new Error(`Failed to verify claim token: ${error.message}`);
+  if (!updated) throw new Error("Claim token changed before it could be verified");
+  console.log(`[webhook] VERIFIED ${table}: ${token.slice(0,8)}... → ${email}`);
 }
 

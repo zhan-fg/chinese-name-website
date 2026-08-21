@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getChart } from "@/lib/storage";
+import { getChartPersistent } from "@/lib/storage";
 import { generateAnalysisText } from "@/lib/analysis";
 import { generateAnalysis, isLLMConfigured } from "@/lib/llm";
 import fs from "fs";
@@ -16,7 +16,7 @@ export async function GET(request: NextRequest) {
   const id = request.nextUrl.searchParams.get("id");
   if (!id) return NextResponse.json({ error: "Missing id" }, { status: 400 });
 
-  const data = getChart(id);
+  const data = await getChartPersistent(id);
   if (!data) return NextResponse.json({ error: "Chart not found" }, { status: 404 });
 
   // Try DeepSeek first

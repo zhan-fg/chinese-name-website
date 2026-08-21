@@ -2,7 +2,7 @@ export const dynamic = "force-dynamic";
 
 import { NextRequest, NextResponse } from 'next/server';
 import { runChart } from '@/lib/chart';
-import { saveChart, cleanupOldFiles } from '@/lib/storage';
+import { saveChartPersistent, cleanupOldFiles } from '@/lib/storage';
 import crypto from 'crypto';
 
 export async function POST(request: NextRequest) {
@@ -36,7 +36,7 @@ export async function POST(request: NextRequest) {
 
     const id = crypto.randomUUID().slice(0, 8);
 
-    saveChart(id, {
+    await saveChartPersistent(id, {
       birthInfo,
       chart: result.json,
       chartText: result.text,
