@@ -21,6 +21,9 @@ Vercel environment variable, and put the same value in the Ping URL. Gumroad
 Ping has no request-signing secret, so the endpoint also enforces the known
 product permalinks, exact USD prices, eligible sale state, and unique `sale_id`.
 No Gumroad API access token or product ID environment variables are required.
+Set `GUMROAD_SELLER_ID` to the seller ID shown in Gumroad. The endpoint accepts
+either the URL secret or that seller ID because Gumroad may omit Ping URL query
+parameters after a domain redirect.
 
 Paid account and report APIs require a Supabase access token in the
 `Authorization: Bearer <token>` header. The browser uses email OTP/magic-link

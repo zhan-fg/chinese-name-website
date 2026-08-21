@@ -10,6 +10,7 @@ const PRODUCTS = {
   report: { permalink: "kqzwc", price: 499 },
   premium: { permalink: "uawodz", price: 999 },
 } as const;
+const DEFAULT_GUMROAD_SELLER_ID = "5cOwNCNoZDMwRb9EJTyDww==";
 
 function isTrue(value: string | undefined): boolean {
   return value === "true" || value === "1";
@@ -37,14 +38,6 @@ function permalinkSlug(value: string): string {
  */
 export async function POST(request: NextRequest) {
   try {
-    const configuredSecret = process.env.GUMROAD_PING_SECRET;
-    const providedSecret = request.nextUrl.searchParams.get("secret") || "";
-    if (!configuredSecret || !providedSecret || configuredSecret.length !== providedSecret.length ||
-        !crypto.timingSafeEqual(Buffer.from(configuredSecret), Buffer.from(providedSecret))) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
-
-    const db = requireSupabaseAdmin();
     const contentType = request.headers.get("content-type") || "";
     let body: Record<string, string> = {};
 
@@ -57,6 +50,22 @@ export async function POST(request: NextRequest) {
         body[key] = value;
       });
     }
+
+    const configuredSecret = process.env.GUMROAD_PING_SECRET || "";
+    const providedSecret = request.nextUrl.searchParams.get("secret") || "";
+    const hasValidSecret = Boolean(
+      configuredSecret &&
+      providedSecret &&
+      configuredSecret.length === providedSecret.length &&
+      crypto.timingSafeEqual(Buffer.from(configuredSecret), Buffer.from(providedSecret)),
+    );
+    const expectedSellerId = process.env.GUMROAD_SELLER_ID || DEFAULT_GUMROAD_SELLER_ID;
+    const hasValidSeller = body.seller_id === expectedSellerId;
+    if (!hasValidSecret && !hasValidSeller) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
+    const db = requireSupabaseAdmin();
 
     const saleId = body.sale_id?.trim();
     const email = body.email?.toLowerCase().trim();
