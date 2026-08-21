@@ -3,6 +3,8 @@ export const dynamic = "force-dynamic";
 import { NextRequest, NextResponse } from "next/server";
 import { requireSupabaseAdmin, TABLES } from "@/lib/supabase";
 import type { SupabaseClient } from "@supabase/supabase-js";
+import { verifyGumroadSale } from "@/lib/gumroad";
+import crypto from "crypto";
 
 /**
  * POST /api/gumroad-webhook
@@ -21,6 +23,13 @@ import type { SupabaseClient } from "@supabase/supabase-js";
  */
 export async function POST(request: NextRequest) {
   try {
+    const configuredSecret = process.env.GUMROAD_WEBHOOK_SECRET;
+    const providedSecret = request.nextUrl.searchParams.get("secret") || "";
+    if (!configuredSecret || !providedSecret || configuredSecret.length !== providedSecret.length ||
+        !crypto.timingSafeEqual(Buffer.from(configuredSecret), Buffer.from(providedSecret))) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
     const db = requireSupabaseAdmin();
     const contentType = request.headers.get("content-type") || "";
     let body: Record<string, string> = {};
@@ -36,10 +45,6 @@ export async function POST(request: NextRequest) {
     }
 
     const saleId = body.sale_id;
-    const email = body.email;
-    const price = parseInt(body.price || "0", 10);
-    const permalink = body.product_permalink || "";
-    const productName = body.product_name || "";
 
     // Extract claim_token from url_params
     let claimToken = "";
@@ -55,20 +60,36 @@ export async function POST(request: NextRequest) {
       claimToken = body["url_params[claim_token]"] || "";
     }
 
-    console.log(`[webhook] sale=${saleId} email=${email} permalink=${permalink} claim_token=${claimToken ? claimToken.slice(0,8)+"..." : "(none)"}`);
-
-    if (!saleId || !email) {
-      console.error("Gumroad Ping: missing sale_id or email", { saleId, email });
+    if (!saleId) {
       return NextResponse.json({ error: "Missing required fields" }, { status: 400 });
     }
+
+    const verifiedSale = await verifyGumroadSale(saleId);
+    if (!verifiedSale || verifiedSale.currency !== "usd") {
+      return NextResponse.json({ error: "Sale verification failed" }, { status: 403 });
+    }
+    const { email, price, permalink, productName, productId } = verifiedSale;
+
+    console.log(`[webhook] verified sale=${saleId} permalink=${permalink} claim_token=${claimToken ? claimToken.slice(0,8)+"..." : "(none)"}`);
 
     const normalizedEmail = email.toLowerCase().trim();
 
     // ── Detect bazi product (shared Gumroad account) ──
     // Gumroad sends product_permalink as full URL (https://zhanqiuhui.gumroad.com/l/pyzrg)
     // so use includes instead of exact match.
-    const isBazi = (permalink || "").toLowerCase().includes("pyzrg");
+    const baziProductId = process.env.GUMROAD_BAZI_PRODUCT_ID || "";
+    const namingReportProductId = process.env.GUMROAD_REPORT_PRODUCT_ID || "";
+    const namingPremiumProductId = process.env.GUMROAD_PREMIUM_PRODUCT_ID || "";
+    const allowedProductIds = [baziProductId, namingReportProductId, namingPremiumProductId].filter(Boolean);
+    if (!productId || !allowedProductIds.includes(productId)) {
+      return NextResponse.json({ error: "Unknown product" }, { status: 400 });
+    }
+
+    const isBazi = productId === baziProductId;
     if (isBazi) {
+      if (price !== 199) {
+        return NextResponse.json({ error: "Product price mismatch" }, { status: 400 });
+      }
       return handleBaziPurchase(db, saleId, normalizedEmail, price, permalink, productName, claimToken);
     }
 
@@ -88,21 +109,14 @@ export async function POST(request: NextRequest) {
 
     // Determine what to grant
     let reportUnlocks = 0;
-    let credits = 0;
 
     // kqzwc = Identity Report ($4.99), uawodz = Premium ($9.99)
-    if (price === 499 || permalink === "kqzwc") {
+    if (productId === namingReportProductId && price === 499) {
       reportUnlocks = 1;
-    } else if (price === 999 || permalink === "uawodz") {
+    } else if (productId === namingPremiumProductId && price === 999) {
       reportUnlocks = 20;
-    } else if (price === 599) {
-      credits = 5;
-    } else if (price === 1299) {
-      credits = 15;
     } else {
-      console.log(
-        `Gumroad Ping: unknown product price=${price} permalink=${permalink} name="${productName}"`
-      );
+      return NextResponse.json({ error: "Product price mismatch" }, { status: 400 });
     }
 
     // Grant the purchase (naming tables: "users", NOT bazi_users)
@@ -110,13 +124,6 @@ export async function POST(request: NextRequest) {
       await addNamingReportUnlocks(db, normalizedEmail, reportUnlocks);
       console.log(
         `Gumroad Ping: ${reportUnlocks} report unlocks for ${normalizedEmail} (${productName})`
-      );
-    }
-
-    if (credits > 0) {
-      await addCredits(db, normalizedEmail, credits);
-      console.log(
-        `Gumroad Ping: ${credits} credits for ${normalizedEmail} (${productName})`
       );
     }
 
@@ -138,18 +145,12 @@ export async function POST(request: NextRequest) {
       console.log(`[webhook naming] no claim_token in ping`);
     }
 
-    // Fallback: link any pending tokens for this email
-    await linkPendingTokensByEmail(db, TABLES.claimTokens, normalizedEmail);
-    await linkPendingTokensByEmail(db, "claim_tokens", normalizedEmail);
-
     return NextResponse.json({ ok: true });
   } catch (error) {
     console.error("gumroad-webhook error:", error);
-    // Always return 200 so Gumroad doesn't retry
-    return NextResponse.json({ ok: false, error: "Internal error" }, { status: 200 });
+    return NextResponse.json({ ok: false, error: "Internal error" }, { status: 500 });
   }
 }
-
 // ─── Naming product helpers (write to chinese-name "users" table) ───
 
 async function addNamingReportUnlocks(db: SupabaseClient, email: string, count: number) {
@@ -180,36 +181,6 @@ async function addNamingReportUnlocks(db: SupabaseClient, email: string, count: 
     });
   }
 }
-
-async function addCredits(db: SupabaseClient, email: string, count: number) {
-  const { data: existing } = await db
-    .from("users")
-    .select("id, credits_remaining")
-    .eq("email", email)
-    .order("created_at", { ascending: false })
-    .limit(1)
-    .single();
-
-  if (existing) {
-    await db
-      .from("users")
-      .update({
-        credits_remaining: (existing.credits_remaining || 0) + count,
-        updated_at: new Date().toISOString(),
-      })
-      .eq("id", existing.id);
-  } else {
-    await db.from("users").insert({
-      anonymous_id: `gumroad-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
-      email,
-      free_uses_remaining: 0,
-      credits_remaining: count,
-      report_unlocks_remaining: 0,
-      subscription_status: "none",
-    });
-  }
-}
-
 // ─── Bazi-ziwei-web product handler ───────────────────────
 // Writes to bazi_processed_sales (dedup) + bazi_users (credits).
 
@@ -281,10 +252,6 @@ async function handleBaziPurchase(
     console.log(`[webhook bazi] no claim_token in ping, checking for pending tokens by email`);
   }
 
-  // Fallback: link ANY pending token for this email (handles race condition
-  // where webhook arrives before init-claim creates the token)
-  await linkPendingTokensByEmail(db, TABLES.claimTokens, email);
-
   console.log(`Gumroad Ping (bazi): ${reportUnlocks} unlocks for ${email} (${productName})`);
   return NextResponse.json({ ok: true, product: "bazi" });
 }
@@ -325,30 +292,4 @@ async function linkTokenByValue(
   } else if (count) {
     console.log(`[webhook] VERIFIED ${table}: ${token.slice(0,8)}... → ${email} (${count} row)`);
   }
-}
-
-async function linkPendingTokensByEmail(
-  db: SupabaseClient,
-  table: string,
-  email: string,
-) {
-  // Link ALL pending tokens with no email (created by init-claim, waiting for webhook)
-  // Tokens expire after 15 min so old ones are naturally excluded
-  const { data: pending } = await db
-    .from(table)
-    .select("id, token")
-    .eq("status", "pending")
-    .is("email", null)
-    .limit(10);
-
-  if (!pending || pending.length === 0) return;
-
-  for (const row of pending) {
-    await db.from(table)
-      .update({ email, status: "verified" })
-      .eq("id", row.id)
-      .eq("status", "pending");
-  }
-
-  console.log(`[webhook] linked ${pending.length} pending tokens in ${table} for ${email}`);
 }

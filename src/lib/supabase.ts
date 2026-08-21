@@ -5,6 +5,9 @@ import { createClient, SupabaseClient } from "@supabase/supabase-js";
 const supabaseUrl = process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL || "";
 const supabaseAnonKey = process.env.SUPABASE_ANON_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || "";
 const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY || "";
+const safeUrl = supabaseUrl || "http://127.0.0.1:54321";
+const safeAnonKey = supabaseAnonKey || "build-placeholder-anon-key";
+const safeServiceKey = supabaseServiceKey || "build-placeholder-service-key";
 
 function createSafeClient(url: string, key: string, opts?: { auth?: { persistSession: boolean } }): SupabaseClient | null {
   if (!url || !key) return null;
@@ -12,7 +15,7 @@ function createSafeClient(url: string, key: string, opts?: { auth?: { persistSes
 }
 
 // Public client — for client-side reads (anonymous users)
-export const supabase = createClient(supabaseUrl, supabaseAnonKey);
+export const supabase = createClient(safeUrl, safeAnonKey);
 
 // Admin client — for server-side writes (bypasses RLS).
 // Separate instances: supabaseAdminBazi uses createSafeClient (may be null),
@@ -22,7 +25,7 @@ const _supabaseAdmin = createSafeClient(supabaseUrl, supabaseServiceKey, {
 });
 
 // Non-null admin client for existing chinese-name routes
-export const supabaseAdmin = createClient(supabaseUrl, supabaseServiceKey, {
+export const supabaseAdmin = createClient(safeUrl, safeServiceKey, {
   auth: { persistSession: false },
 });
 

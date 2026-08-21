@@ -1,5 +1,30 @@
 This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
 
+## Security setup
+
+Before deploying, copy `.env.example` to `.env.local` and configure Supabase,
+the LLM provider, Gumroad, and PayPal. Never expose the service role key or
+Gumroad access token through a `NEXT_PUBLIC_*` variable.
+
+Apply `supabase/migrations/202608210001_p0_security.sql` before deploying this
+revision. It installs the atomic usage ledger, authenticated report ownership,
+payment idempotency indexes, and revocable report sharing.
+
+Configure the Gumroad Ping URL as:
+
+```text
+https://your-domain.example/api/gumroad-webhook?secret=<GUMROAD_WEBHOOK_SECRET>
+```
+
+The webhook does not trust the Ping request body. It fetches the sale from the
+Gumroad API and verifies product ID, price, currency, and refund/dispute state.
+Set all three Gumroad product ID variables from the Gumroad product settings.
+
+Paid account and report APIs require a Supabase access token in the
+`Authorization: Bearer <token>` header. The browser uses email OTP/magic-link
+authentication before calling these endpoints. Add the production site URL and
+redirect URLs to the Supabase Auth configuration.
+
 ## Getting Started
 
 First, run the development server:

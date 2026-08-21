@@ -2,6 +2,7 @@ export const dynamic = "force-dynamic";
 
 import { NextRequest, NextResponse } from "next/server";
 import { requireSupabaseAdmin, TABLES } from "@/lib/supabase";
+import { isUnauthorized, requireAuthenticatedUser } from "@/lib/auth";
 
 /**
  * GET /api/check-balance?email=xxx
@@ -12,16 +13,16 @@ import { requireSupabaseAdmin, TABLES } from "@/lib/supabase";
  */
 export async function GET(request: NextRequest) {
   try {
-    const email = request.nextUrl.searchParams.get("email");
-    if (!email) return NextResponse.json({ error: "email is required" }, { status: 400 });
+    const authUser = await requireAuthenticatedUser(request);
 
     const db = requireSupabaseAdmin();
-    const normalizedEmail = email.toLowerCase().trim();
+    const normalizedEmail = authUser.email;
 
     const { data: user } = await db
       .from(TABLES.users)
       .select("id, report_unlocks_remaining, last_credited_at")
       .eq("email", normalizedEmail)
+      .eq("auth_user_id", authUser.id)
       .order("created_at", { ascending: false })
       .limit(1)
       .maybeSingle();
@@ -30,6 +31,9 @@ export async function GET(request: NextRequest) {
 
     return NextResponse.json({ balance, email: normalizedEmail });
   } catch (error: any) {
+    if (isUnauthorized(error)) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
     console.error("[check-balance] error:", error);
     return NextResponse.json({ error: "Internal error" }, { status: 500 });
   }

@@ -14,9 +14,7 @@ export async function GET(request: NextRequest) {
   try {
     const db = requireSupabaseAdmin();
     const token = request.nextUrl.searchParams.get("token");
-    const email = request.nextUrl.searchParams.get("email");
-
-    if (!token && !email) {
+    if (!token) {
       return NextResponse.json({ status: "invalid" }, { status: 400 });
     }
 
@@ -58,18 +56,6 @@ export async function GET(request: NextRequest) {
         });
       }
 
-      // Token is still pending — check if email has recent purchases
-      if (email && baziData && baziData.status === "pending") {
-        const verified = await checkRecentPurchases(db, email);
-        if (verified) {
-          return NextResponse.json({
-            status: "verified",
-            email,
-            chartId: baziData.chart_id,
-          });
-        }
-      }
-
       // Still pending or not found
       if (!baziData && !sharedData) {
         return NextResponse.json({ status: "not_found" }, { status: 404 });
@@ -82,52 +68,9 @@ export async function GET(request: NextRequest) {
       });
     }
 
-    // ── Email-only fallback ──
-    if (email && !token) {
-      const verified = await checkRecentPurchases(db, email);
-      if (verified) {
-        return NextResponse.json({ status: "verified", email });
-      }
-      return NextResponse.json({ status: "not_found" }, { status: 404 });
-    }
-
     return NextResponse.json({ status: "not_found" }, { status: 404 });
   } catch (error) {
     console.error("claim-status error:", error);
     return NextResponse.json({ status: "error" }, { status: 500 });
   }
-}
-
-async function checkRecentPurchases(db: ReturnType<typeof requireSupabaseAdmin>, email: string): Promise<boolean> {
-  const normalizedEmail = email.toLowerCase().trim();
-
-  // Check bazi_processed_sales for recent bazi purchases
-  const { data: baziSale } = await db
-    .from(TABLES.processedSales)
-    .select("id, created_at")
-    .eq("email", normalizedEmail)
-    .order("created_at", { ascending: false })
-    .limit(1)
-    .maybeSingle();
-
-  if (baziSale) {
-    const age = Date.now() - new Date(baziSale.created_at).getTime();
-    if (age < 10 * 60 * 1000) return true; // within 10 minutes
-  }
-
-  // Check shared processed_sales for naming purchases
-  const { data: sharedSale } = await db
-    .from("processed_sales")
-    .select("id, created_at")
-    .eq("email", normalizedEmail)
-    .order("created_at", { ascending: false })
-    .limit(1)
-    .maybeSingle();
-
-  if (sharedSale) {
-    const age = Date.now() - new Date(sharedSale.created_at).getTime();
-    if (age < 10 * 60 * 1000) return true; // within 10 minutes
-  }
-
-  return false;
 }

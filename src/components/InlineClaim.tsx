@@ -109,8 +109,6 @@ export default function InlineClaim({ nameId, nameData, onSuccess, onClose }: Pr
             localStorage.setItem("shan-unlocked", JSON.stringify(unlocked));
           }
           localStorage.removeItem("shan-pending-unlock");
-          localStorage.removeItem("shan-claim-token");
-          sessionStorage.removeItem("shan-claim-token");
         } catch {}
 
         if (nameData && userEmail) {
@@ -121,8 +119,12 @@ export default function InlineClaim({ nameId, nameData, onSuccess, onClose }: Pr
               email: userEmail,
               nameId,
               nameData,
+              claimToken: token,
             }),
-          }).catch(() => {});
+          }).finally(() => {
+            localStorage.removeItem("shan-claim-token");
+            sessionStorage.removeItem("shan-claim-token");
+          });
         }
 
         setPhase("done");

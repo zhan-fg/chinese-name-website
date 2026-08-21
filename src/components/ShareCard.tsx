@@ -3,6 +3,7 @@
 import { NameEntry } from "@/lib/types";
 import { motion } from "framer-motion";
 import { useEffect, useRef, useState } from "react";
+import { authenticatedFetch } from "@/lib/auth-fetch";
 
 interface Props {
   name: NameEntry;
@@ -189,8 +190,9 @@ export default function ShareCard({ name, onClose }: Props) {
     // ============================================================
     // QR CODE — scan to see this name's story
     // ============================================================
-    const shareUrl = buildShareUrl(name);
+    const shareUrl = await buildShareUrl(name);
     try {
+      if (!shareUrl) throw new Error("Sign in to create a share link");
       const qrImg = await loadQrCode(shareUrl);
       const qrSize = 130;
       const qrX = W / 2 - qrSize / 2;
@@ -312,10 +314,21 @@ function getPoeticLine(name: NameEntry): string {
 /**
  * Build the QR code URL — encodes essential name data for the /share page.
  */
-function buildShareUrl(name: NameEntry): string {
+async function buildShareUrl(name: NameEntry): Promise<string | null> {
   // Build nameId: "思远-poetry"
   const nameId = `${name.fullChars || name.chars?.replace(/ /g, "") || ""}-${name.sourceCategory || ""}`;
-  return `https://newchinesename.com/share?id=${encodeURIComponent(nameId)}`;
+  try {
+    const res = await authenticatedFetch("/api/create-report-share", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ nameId }),
+    });
+    if (!res.ok) return null;
+    const data = await res.json();
+    return `${window.location.origin}/share?token=${encodeURIComponent(data.token)}`;
+  } catch {
+    return null;
+  }
 }
 
 /**

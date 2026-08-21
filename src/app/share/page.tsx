@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import type { NameEntry } from "@/lib/types";
 
 interface Props {
-  searchParams: Promise<{ id?: string }>;
+  searchParams: Promise<{ token?: string }>;
 }
 
 export const metadata: Metadata = {
@@ -10,10 +10,10 @@ export const metadata: Metadata = {
   description: "Discover the full story behind this Chinese name, rooted in 3,000 years of poetry and legend.",
 };
 
-async function fetchReport(nameId: string): Promise<NameEntry | null> {
+async function fetchReport(token: string): Promise<NameEntry | null> {
   try {
     const base = process.env.NEXT_PUBLIC_SITE_URL || "https://newchinesename.com";
-    const res = await fetch(`${base}/api/public-report?nameId=${encodeURIComponent(nameId)}`, {
+    const res = await fetch(`${base}/api/public-report?token=${encodeURIComponent(token)}`, {
       cache: "no-store",
     });
     if (!res.ok) return null;
@@ -30,8 +30,8 @@ function displayName(report: NameEntry): string {
 
 export default async function SharePage({ searchParams }: Props) {
   const params = await searchParams;
-  const nameId = params.id || "";
-  const report = nameId ? await fetchReport(nameId) : null;
+  const token = params.token || "";
+  const report = token ? await fetchReport(token) : null;
 
   if (!report) {
     return (

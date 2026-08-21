@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { GUMROAD_PRODUCTS } from "@/lib/gumroad";
+import { authenticatedFetch, ensureEmailSession } from "@/lib/auth-fetch";
 
 interface Props {
   visible: boolean;
@@ -27,11 +28,14 @@ export default function PaywallModal({
     setRecoveryMsg(null);
 
     try {
-      const res = await fetch("/api/recover-credits", {
+      if (!(await ensureEmailSession(recoveryEmail))) {
+        setRecoveryMsg("Check your email and open the secure sign-in link, then try again.");
+        return;
+      }
+      const res = await authenticatedFetch("/api/recover-credits", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          email: recoveryEmail.trim(),
           anonymousId:
             typeof window !== "undefined"
               ? localStorage.getItem("shan-anon-id") || ""

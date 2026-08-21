@@ -1,11 +1,14 @@
 import { NextRequest, NextResponse } from "next/server";
 import { generateName } from "@/lib/deepseek";
 import { calculateBazi, formatBaziForPrompt } from "@/lib/bazi";
-import { deductUse } from "@/lib/credits";
+import { completeGeneration, refundGeneration, reserveGeneration } from "@/lib/usage";
+import crypto from "crypto";
 
 export const maxDuration = 60;
 
 export async function POST(request: NextRequest) {
+  let requestId = "";
+  let reserved = false;
   try {
     const body = await request.json();
     const {
@@ -22,7 +25,16 @@ export async function POST(request: NextRequest) {
       birthLocation,
       anonymousId,
       excludeNames,
+      requestId: clientRequestId,
     } = body;
+
+    if (!anonymousId || typeof anonymousId !== "string" || anonymousId.length > 128) {
+      return NextResponse.json({ error: "A valid anonymousId is required" }, { status: 401 });
+    }
+
+    requestId = typeof clientRequestId === "string" && /^[a-zA-Z0-9_-]{16,128}$/.test(clientRequestId)
+      ? clientRequestId
+      : crypto.randomUUID();
 
     if (!sourceCategory) {
       return NextResponse.json(
@@ -62,6 +74,9 @@ export async function POST(request: NextRequest) {
       }
     }
 
+    await reserveGeneration(anonymousId, requestId);
+    reserved = true;
+
     const result = await generateName(
       {
         sourceCategory,
@@ -80,33 +95,17 @@ export async function POST(request: NextRequest) {
       Array.isArray(excludeNames) ? excludeNames : undefined
     );
 
-    // Deduct credit after successful generation
-    let deductionStatus = "skipped";
-    let deductionError = "";
-    if (anonymousId) {
-      try {
-        await deductUse(anonymousId);
-        deductionStatus = "ok";
-      } catch (err) {
-        console.error("Failed to deduct credit:", err);
-        deductionStatus = "failed";
-        deductionError = err instanceof Error ? err.message : String(err);
-      }
-    } else {
-      deductionError = "no anonymousId provided";
-    }
-
-    return NextResponse.json({
-      ...result,
-      _debug: {
-        deduction: deductionStatus,
-        deductionError: deductionError || undefined,
-        anonymousId: anonymousId || "missing",
-        aiMode: (result as unknown as Record<string, unknown>)._fallback ? "fallback" : "ai",
-      },
-    });
+    await completeGeneration(requestId);
+    return NextResponse.json({ ...result, requestId });
   } catch (error) {
     console.error("API route error:", error);
+    if (reserved && requestId) await refundGeneration(requestId);
+    if (error instanceof Error && error.message === "INSUFFICIENT_BALANCE") {
+      return NextResponse.json({ error: "No generations remaining" }, { status: 402 });
+    }
+    if (error instanceof Error && error.message === "USAGE_SERVICE_UNAVAILABLE") {
+      return NextResponse.json({ error: "Usage service unavailable" }, { status: 503 });
+    }
     return NextResponse.json(
       { error: "Internal server error" },
       { status: 500 }

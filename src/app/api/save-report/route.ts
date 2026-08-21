@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabase";
+import { isUnauthorized, requireAuthenticatedUser } from "@/lib/auth";
+import { validateName } from "@/lib/validate";
 
 /**
  * POST /api/save-report
@@ -8,31 +10,55 @@ import { supabaseAdmin } from "@/lib/supabase";
  */
 export async function POST(request: NextRequest) {
   try {
-    const { email, nameId, nameData } = await request.json();
+    const body = await request.json();
+    const { nameId, nameData, claimToken } = body;
 
-    if (!email || !nameId || !nameData) {
+    if (!nameId || typeof nameId !== "string" || nameId.length > 128 || !validateName(nameData)) {
       return NextResponse.json(
-        { error: "email, nameId, and nameData are required" },
+        { error: "Valid nameId and nameData are required" },
         { status: 400 }
       );
     }
 
-    const normalizedEmail = email.toLowerCase().trim();
+    let saved = false;
+    let error: unknown = null;
+    try {
+      const user = await requireAuthenticatedUser(request);
+      const result = await supabaseAdmin.rpc("save_name_report", {
+        p_auth_user_id: user.id,
+        p_email: user.email,
+        p_name_id: nameId,
+        p_name_data: nameData,
+      });
+      saved = result.data === true;
+      error = result.error;
+    } catch (authError) {
+      if (!isUnauthorized(authError)) throw authError;
+      if (!claimToken || typeof claimToken !== "string") {
+        return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+      }
+      const { data: claim } = await supabaseAdmin
+        .from("bazi_claim_tokens")
+        .select("email, chart_id")
+        .eq("token", claimToken)
+        .eq("status", "claimed")
+        .eq("chart_id", nameId)
+        .maybeSingle();
+      if (!claim?.email) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
-    // Upsert: insert or update (same nameId + email = update)
-    const { error } = await supabaseAdmin.from("name_reports").upsert(
-      {
-        email: normalizedEmail,
+      const result = await supabaseAdmin.from("name_reports").upsert({
+        email: claim.email,
         name_id: nameId,
         name_data: nameData,
         updated_at: new Date().toISOString(),
-      },
-      { onConflict: "email,name_id" }
-    );
+      }, { onConflict: "email,name_id" });
+      saved = !result.error;
+      error = result.error;
+    }
 
-    if (error) {
+    if (error || !saved) {
       console.error("save-report error:", error);
-      return NextResponse.json({ error: "Failed to save report" }, { status: 500 });
+      return NextResponse.json({ error: "No report entitlement" }, { status: 403 });
     }
 
     return NextResponse.json({ ok: true });

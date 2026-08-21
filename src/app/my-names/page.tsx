@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import type { NameEntry } from "@/lib/types";
+import { authenticatedFetch, ensureEmailSession } from "@/lib/auth-fetch";
 
 interface ReportItem {
   nameId: string;
@@ -23,9 +24,11 @@ export default function MyNamesPage() {
     setSearched(true);
 
     try {
-      const res = await fetch(
-        `/api/my-reports?email=${encodeURIComponent(email.trim())}`
-      );
+      if (!(await ensureEmailSession(email))) {
+        setError("Check your email and open the secure sign-in link, then return here.");
+        return;
+      }
+      const res = await authenticatedFetch("/api/my-reports");
       const data = await res.json();
       setReports(data.reports || []);
       if (data.reports?.length === 0) {

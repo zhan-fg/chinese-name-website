@@ -6,6 +6,7 @@ import { getChart } from "@/lib/storage";
 import { generateAnalysis, isLLMConfigured } from "@/lib/llm";
 import fs from "fs";
 import path from "path";
+import { isUnauthorized, requireAuthenticatedUser } from "@/lib/auth";
 
 /**
  * POST /api/generate-reading
@@ -19,13 +20,14 @@ import path from "path";
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { chartId, email, chartText, chart, birthInfo } = body;
+    const authUser = await requireAuthenticatedUser(request);
+    const { chartId } = body;
 
-    if (!chartId || !email) {
-      return NextResponse.json({ error: "chartId and email are required" }, { status: 400 });
+    if (!chartId || typeof chartId !== "string" || !/^[a-zA-Z0-9_-]{1,64}$/.test(chartId)) {
+      return NextResponse.json({ error: "A valid chartId is required" }, { status: 400 });
     }
 
-    const normalizedEmail = email.toLowerCase().trim();
+    const normalizedEmail = authUser.email;
     const db = requireSupabaseAdmin();
 
     // Verify user has unlocked this chart
@@ -33,6 +35,7 @@ export async function POST(request: NextRequest) {
       .from(TABLES.users)
       .select("id, unlocked_charts, report_unlocks_remaining")
       .eq("email", normalizedEmail)
+      .eq("auth_user_id", authUser.id)
       .order("created_at", { ascending: false })
       .limit(1)
       .single();
@@ -59,19 +62,12 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ analysis: cached.analysis_text, source: "cache", chartId });
     }
 
-    // ── Resolve chart data: prefer client-supplied, fall back to local file ──
-    let data: any = null;
-    let textForLLM = "";
-    if (chartText && chart && birthInfo) {
-      data = { chartText, chart, birthInfo };
-      textForLLM = chartText;
-    } else {
-      data = getChart(chartId);
-      if (!data) {
-        return NextResponse.json({ error: "Chart data not found" }, { status: 404 });
-      }
-      textForLLM = data.chartText;
+    // Server data is authoritative. Never accept client-supplied chart text.
+    const data: any = getChart(chartId);
+    if (!data) {
+      return NextResponse.json({ error: "Chart data not found" }, { status: 404 });
     }
+    const textForLLM = data.chartText;
 
     if (!isLLMConfigured()) {
       const { generateAnalysisText } = await import("@/lib/analysis");
@@ -117,6 +113,9 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({ analysis, source: "deepseek", chartId });
   } catch (error: any) {
+    if (isUnauthorized(error)) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
     console.error("generate-reading error:", error);
     return NextResponse.json({ error: error.message || "Failed" }, { status: 500 });
   }

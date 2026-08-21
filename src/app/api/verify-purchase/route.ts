@@ -2,6 +2,7 @@ export const dynamic = "force-dynamic";
 
 import { NextRequest, NextResponse } from "next/server";
 import { requireSupabaseAdmin, TABLES } from "@/lib/supabase";
+import { isUnauthorized, requireAuthenticatedUser } from "@/lib/auth";
 
 /**
  * POST /api/verify-purchase
@@ -14,17 +15,18 @@ import { requireSupabaseAdmin, TABLES } from "@/lib/supabase";
  */
 export async function POST(request: NextRequest) {
   try {
-    const { email, chartId } = await request.json();
-    if (!email) return NextResponse.json({ error: "Email required" }, { status: 400 });
+    const authUser = await requireAuthenticatedUser(request);
+    const { chartId } = await request.json();
 
     const db = requireSupabaseAdmin();
-    const normalizedEmail = email.toLowerCase().trim();
+    const normalizedEmail = authUser.email;
 
     // 1. Get or create user
     const { data: user } = await db
       .from(TABLES.users)
       .select("id, report_unlocks_remaining, unlocked_charts, last_credited_at")
       .eq("email", normalizedEmail)
+      .eq("auth_user_id", authUser.id)
       .order("created_at", { ascending: false })
       .limit(1)
       .maybeSingle();
@@ -61,6 +63,7 @@ export async function POST(request: NextRequest) {
       const { data: _newUser } = await db.from(TABLES.users)
         .insert({
           anonymous_id: `gsale-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+          auth_user_id: authUser.id,
           email: normalizedEmail,
           free_uses_remaining: 0,
           report_unlocks_remaining: totalNew,
@@ -83,6 +86,9 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({ verified: true, credits: reportUnlocks });
   } catch (error: any) {
+    if (isUnauthorized(error)) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
     console.error("[verify-purchase] error:", error);
     return NextResponse.json({ error: "Internal error" }, { status: 500 });
   }

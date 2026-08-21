@@ -33,7 +33,8 @@ export async function POST(request: NextRequest) {
       .from(TABLES.claimTokens)
       .select("id, chart_id, status, expires_at, email")
       .eq("token", token)
-      .in("status", ["pending", "verified"]);
+      .eq("status", "verified")
+      .eq("email", normalizedEmail);
 
     if (productType === "chart") {
       tokenQuery = tokenQuery.eq("chart_id", chartId);

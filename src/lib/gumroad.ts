@@ -19,6 +19,49 @@ export const GUMROAD_PRODUCTS = {
 
 export type GumroadProductId = keyof typeof GUMROAD_PRODUCTS;
 
+export interface VerifiedGumroadSale {
+  saleId: string;
+  email: string;
+  price: number;
+  currency: string;
+  productId: string;
+  permalink: string;
+  productName: string;
+}
+
+export async function verifyGumroadSale(saleId: string): Promise<VerifiedGumroadSale | null> {
+  const token = process.env.GUMROAD_ACCESS_TOKEN;
+  if (!token || !saleId) return null;
+
+  const res = await fetch(`https://api.gumroad.com/v2/sales/${encodeURIComponent(saleId)}`, {
+    headers: { Authorization: `Bearer ${token}` },
+    cache: "no-store",
+  });
+  if (!res.ok) return null;
+
+  const json = await res.json();
+  const sale = json.sale;
+  if (
+    !json.success ||
+    !sale ||
+    sale.id !== saleId ||
+    sale.refunded ||
+    sale.disputed ||
+    sale.chargebacked ||
+    !sale.email
+  ) return null;
+
+  return {
+    saleId: sale.id,
+    email: sale.email.toLowerCase().trim(),
+    price: Number(sale.price || 0),
+    currency: String(sale.currency || "usd").toLowerCase(),
+    productId: String(sale.product_id || ""),
+    permalink: String(sale.product_permalink || sale.permalink || ""),
+    productName: String(sale.product_name || ""),
+  };
+}
+
 /**
  * Verify a Gumroad purchase by polling the Gumroad API.
  * Fallback when webhook hasn't fired yet.

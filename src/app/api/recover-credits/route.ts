@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabase";
+import { isUnauthorized, requireAuthenticatedUser } from "@/lib/auth";
 
 /**
  * POST /api/recover-credits
@@ -10,11 +11,13 @@ import { supabaseAdmin } from "@/lib/supabase";
  */
 export async function POST(request: NextRequest) {
   try {
-    const { email, anonymousId } = await request.json();
+    const authUser = await requireAuthenticatedUser(request);
+    const { anonymousId } = await request.json();
+    const email = authUser.email;
 
-    if (!email || !anonymousId) {
+    if (!anonymousId || typeof anonymousId !== "string" || anonymousId.length > 128) {
       return NextResponse.json(
-        { error: "email and anonymousId required" },
+        { error: "A valid anonymousId is required" },
         { status: 400 }
       );
     }
@@ -75,6 +78,7 @@ export async function POST(request: NextRequest) {
           credits_remaining: mergedCredits,
           free_uses_remaining: mergedFree,
           email: email.toLowerCase().trim(),
+          auth_user_id: authUser.id,
           subscription_status: hasSubscription
             ? "active"
             : currentUser.subscription_status,
@@ -97,6 +101,11 @@ export async function POST(request: NextRequest) {
         })
         .eq("id", existingUser.id);
 
+      await supabaseAdmin.from("name_reports")
+        .update({ user_id: authUser.id })
+        .eq("email", email.toLowerCase().trim())
+        .is("user_id", null);
+
       return NextResponse.json({
         success: true,
         freeRemaining: mergedFree,
@@ -109,9 +118,15 @@ export async function POST(request: NextRequest) {
         .from("users")
         .update({
           anonymous_id: anonymousId,
+          auth_user_id: authUser.id,
           updated_at: new Date().toISOString(),
         })
         .eq("id", existingUser.id);
+
+      await supabaseAdmin.from("name_reports")
+        .update({ user_id: authUser.id })
+        .eq("email", email.toLowerCase().trim())
+        .is("user_id", null);
 
       return NextResponse.json({
         success: true,
@@ -121,6 +136,9 @@ export async function POST(request: NextRequest) {
       });
     }
   } catch (error) {
+    if (isUnauthorized(error)) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
     console.error("recover-credits error:", error);
     return NextResponse.json(
       { error: "Failed to recover credits" },

@@ -1,5 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabase";
+import { isUnauthorized, requireAuthenticatedUser } from "@/lib/auth";
+
+export const dynamic = "force-dynamic";
 
 /**
  * GET /api/my-reports?email=xxx
@@ -7,21 +10,12 @@ import { supabaseAdmin } from "@/lib/supabase";
  */
 export async function GET(request: NextRequest) {
   try {
-    const email = request.nextUrl.searchParams.get("email");
-
-    if (!email) {
-      return NextResponse.json(
-        { error: "Email is required" },
-        { status: 400 }
-      );
-    }
-
-    const normalizedEmail = email.toLowerCase().trim();
+    const user = await requireAuthenticatedUser(request);
 
     const { data, error } = await supabaseAdmin
       .from("name_reports")
       .select("name_id, name_data, created_at")
-      .eq("email", normalizedEmail)
+      .eq("user_id", user.id)
       .order("created_at", { ascending: false });
 
     if (error) {
@@ -37,6 +31,9 @@ export async function GET(request: NextRequest) {
       })),
     });
   } catch (error) {
+    if (isUnauthorized(error)) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
     console.error("my-reports error:", error);
     return NextResponse.json({ reports: [] });
   }

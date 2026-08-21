@@ -5,6 +5,7 @@ import { useParams } from "next/navigation";
 import Link from "next/link";
 import LoadingSpinner from "@/components/LoadingSpinner";
 import { marked } from "marked";
+import { authenticatedFetch, ensureEmailSession } from "@/lib/auth-fetch";
 
 function parseMarkdown(text: string): string {
   return marked.parse(text, { breaks: true }) as string;
@@ -156,7 +157,11 @@ export default function ResultPage() {
     setChecking(true);
     setBalance(null);
     try {
-      const res = await fetch(`/api/check-balance?email=${encodeURIComponent(userEmail)}`);
+      if (!(await ensureEmailSession(userEmail))) {
+        setClaimError("Check your email and open the secure sign-in link, then try again.");
+        return;
+      }
+      const res = await authenticatedFetch("/api/check-balance");
       const d = await res.json();
       if (res.ok) setBalance(d.balance ?? 0);
     } catch {
@@ -202,7 +207,12 @@ export default function ResultPage() {
     setClaimError("");
 
     try {
-      const res = await fetch("/api/verify-purchase", {
+      if (!(await ensureEmailSession(userEmail))) {
+        setClaimError("Check your email and open the secure sign-in link, then try again.");
+        setPhase("manual");
+        return;
+      }
+      const res = await authenticatedFetch("/api/verify-purchase", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ email: userEmail, chartId: id }),
@@ -248,7 +258,7 @@ export default function ResultPage() {
 
   const generateReading = async (userEmail: string) => {
     try {
-      const res = await fetch("/api/generate-reading", {
+      const res = await authenticatedFetch("/api/generate-reading", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
