@@ -33,7 +33,7 @@ export default function ResultPage() {
   const readingRef = useRef<HTMLDivElement>(null);
   const qrRef = useRef<HTMLCanvasElement>(null);
   const pollCount = useRef(0);
-  const maxPolls = 30; // 30 × 2s = 60s timeout
+  const maxPolls = 150; // allow up to five minutes to complete checkout
   const pendingEmailRef = useRef<string>("");  // email from auto-claim, avoids stale closure
 
   // ─── Load chart data ─────────────────────────────────────
@@ -175,6 +175,12 @@ export default function ResultPage() {
 
   const startPayment = async () => {
     setClaimError("");
+    const checkoutWindow = window.open("about:blank", "_blank");
+    if (!checkoutWindow) {
+      setClaimError("Please allow pop-ups to continue to secure checkout.");
+      return;
+    }
+    checkoutWindow.opener = null;
     // Create a claim token so Gumroad Ping can auto-verify
     try {
       const tokenRes = await fetch("/api/init-claim", {
@@ -183,18 +189,20 @@ export default function ResultPage() {
         body: JSON.stringify({ chartId: id }),
       });
       const tokenData = await tokenRes.json();
-      if (tokenData.token) {
-        sessionStorage.setItem("bazi-claim-token", tokenData.token);
-        const gumroadUrl = new URL(GUMROAD_PRODUCT_URL);
-        gumroadUrl.searchParams.set("claim_token", tokenData.token);
-        window.open(gumroadUrl.toString(), "_blank", "noopener,noreferrer");
-        setPhase("polling");
-        return;
+      if (!tokenRes.ok || !tokenData.token) {
+        throw new Error(tokenData.error || "Unable to prepare checkout");
       }
-    } catch {}
-    // Fallback: no token, open Gumroad directly
-    window.open(GUMROAD_PRODUCT_URL, "_blank", "noopener,noreferrer");
-    setPhase("manual");
+      sessionStorage.setItem("bazi-claim-token", tokenData.token);
+      const gumroadUrl = new URL(GUMROAD_PRODUCT_URL);
+      gumroadUrl.searchParams.set("wanted", "true");
+      gumroadUrl.searchParams.set("claim_token", tokenData.token);
+      checkoutWindow.location.href = gumroadUrl.toString();
+      setPhase("polling");
+    } catch (error) {
+      checkoutWindow.close();
+      setClaimError(error instanceof Error ? error.message : "Unable to start checkout. Please try again.");
+      setPhase("init");
+    }
   };
 
   const handleVerify = async () => {

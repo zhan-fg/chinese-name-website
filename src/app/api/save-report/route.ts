@@ -38,11 +38,11 @@ export async function POST(request: NextRequest) {
         return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
       }
       const { data: claim } = await supabaseAdmin
-        .from("bazi_claim_tokens")
-        .select("email, chart_id")
+        .from("claim_tokens")
+        .select("email, name_id")
         .eq("token", claimToken)
         .eq("status", "claimed")
-        .eq("chart_id", nameId)
+        .eq("name_id", nameId)
         .maybeSingle();
       if (!claim?.email) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 

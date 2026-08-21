@@ -12,6 +12,7 @@ interface Props {
   isUnlocked?: boolean;
   /** Gumroad product URL for the Report */
   reportUrl?: string;
+  onPaymentStarted?: (nameId: string) => void;
 }
 
 function Skeleton({ h = "h-3", w = "w-full" }: { h?: string; w?: string }) {
@@ -159,12 +160,15 @@ export default function NameResult({
   onShare,
   isUnlocked,
   reportUrl,
+  onPaymentStarted,
 }: Props) {
   const storyLoading = name._storyLoading;
   const [storyOpen, setStoryOpen] = useState(false);
   const [copied, setCopied] = useState(false);
   const [speaking, setSpeaking] = useState(false);
   const [noVoice, setNoVoice] = useState(false);
+  const [paymentStarting, setPaymentStarting] = useState(false);
+  const [paymentError, setPaymentError] = useState("");
 
   const handleCopy = async () => {
     const text = `${name.fullChars} · ${name.pinyin} — ${name.meaning}\n\n"${name.sourceTranslation}"\n— ${name.sourceAttribution}`;
@@ -244,14 +248,20 @@ export default function NameResult({
 
   // Initiate claim: get a one-time token, then open Gumroad
   const handleInitClaim = async () => {
-    if (!nameId || !reportUrl) return;
+    if (!nameId || !reportUrl || paymentStarting) return;
+
+    const checkoutWindow = window.open("about:blank", "_blank");
+    if (!checkoutWindow) {
+      setPaymentError("Please allow pop-ups to continue to secure checkout.");
+      return;
+    }
+    checkoutWindow.opener = null;
+    setPaymentStarting(true);
+    setPaymentError("");
 
     // Store the nameId for the claim flow
     try { localStorage.setItem("shan-pending-unlock", nameId); } catch {}
 
-    let claimToken = "";
-
-    // Get a one-time claim token from the server
     try {
       const res = await fetch("/api/init-claim", {
         method: "POST",
@@ -259,20 +269,24 @@ export default function NameResult({
         body: JSON.stringify({ nameId }),
       });
       const data = await res.json();
-      if (data.token) {
-        claimToken = data.token;
-        localStorage.setItem("shan-claim-token", claimToken);
-        sessionStorage.setItem("shan-claim-token", claimToken);
+      if (!res.ok || !data.token) {
+        throw new Error(data.error || "Unable to prepare checkout");
       }
-    } catch {
-      console.error("Failed to get claim token");
-    }
 
-    // Open Gumroad with claim_token in URL params
-    // Gumroad Ping will send it back in url_params, linking the payment to this session
-    const separator = reportUrl.includes("?") ? "&" : "?";
-    const url = `${reportUrl}${separator}claim_token=${encodeURIComponent(claimToken)}`;
-    window.open(url, "_blank", "noopener,noreferrer");
+      localStorage.setItem("shan-claim-token", data.token);
+      sessionStorage.setItem("shan-claim-token", data.token);
+
+      const gumroadUrl = new URL(reportUrl);
+      gumroadUrl.searchParams.set("wanted", "true");
+      gumroadUrl.searchParams.set("claim_token", data.token);
+      checkoutWindow.location.href = gumroadUrl.toString();
+      onPaymentStarted?.(nameId);
+    } catch (error) {
+      checkoutWindow.close();
+      setPaymentError(error instanceof Error ? error.message : "Unable to start checkout. Please try again.");
+    } finally {
+      setPaymentStarting(false);
+    }
   };
 
   return (
@@ -354,10 +368,12 @@ export default function NameResult({
             </p>
             <button
               onClick={handleInitClaim}
+              disabled={paymentStarting}
               className="px-6 py-2.5 rounded-lg bg-deep-blue text-white text-sm font-medium hover:bg-mid-blue transition-colors"
             >
-              Unlock Full Report — $4.99
+              {paymentStarting ? "Opening secure checkout..." : "Unlock Full Report — $4.99"}
             </button>
+            {paymentError && <p className="text-xs text-red-600 mt-2">{paymentError}</p>}
           </div>
           <BlurOverlay
             title="meaning"

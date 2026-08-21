@@ -6,54 +6,41 @@ import crypto from "crypto";
 
 /**
  * POST /api/init-claim
- * Generates a one-time claim token bound to a specific chartId.
- * Writes to both bazi_claim_tokens AND claim_tokens so the shared
- * Gumroad webhook can update the token status.
+ * Generates a one-time claim token bound to exactly one report or chart.
  *
- * Body: { chartId: string }
+ * Body: { chartId: string } or { nameId: string }
  * Returns: { token: string }
  */
 export async function POST(request: NextRequest) {
   try {
     const db = requireSupabaseAdmin();
     const { chartId, nameId } = await request.json();
-    const contentId = chartId || nameId;
+    const isChart = typeof chartId === "string" && chartId.length > 0;
+    const isReport = typeof nameId === "string" && nameId.length > 0;
+    const contentId = isChart ? chartId : nameId;
 
-    if (!contentId || typeof contentId !== "string") {
+    if (isChart === isReport || !contentId || contentId.length > 128) {
       return NextResponse.json({ error: "chartId or nameId is required" }, { status: 400 });
     }
 
     const token = crypto.randomBytes(24).toString("hex");
-    const expiresAt = new Date(Date.now() + 15 * 60 * 1000).toISOString();
+    const expiresAt = new Date(Date.now() + 2 * 60 * 60 * 1000).toISOString();
 
-    // Write to bazi_claim_tokens (primary)
-    const { error: baziErr } = await db.from(TABLES.claimTokens).insert({
+    const table = isChart ? TABLES.claimTokens : "claim_tokens";
+    const contentColumn = isChart ? "chart_id" : "name_id";
+    const { error } = await db.from(table).insert({
       token,
-      chart_id: contentId,
+      [contentColumn]: contentId,
       status: "pending",
       expires_at: expiresAt,
     });
 
-    if (baziErr) {
-      console.error("Failed to store bazi claim token:", baziErr);
+    if (error) {
+      console.error(`Failed to store ${isChart ? "chart" : "report"} claim token:`, error);
       return NextResponse.json({ error: "Failed to generate token" }, { status: 500 });
     }
 
-    // Also write to shared claim_tokens so the Gumroad webhook can find it.
-    // Shared schema: token, name_id (NOT NULL), status, email, expires_at (NOT NULL).
-    const { error: sharedErr } = await db.from("claim_tokens").insert({
-      token,
-      name_id: contentId,
-      status: "pending",
-      expires_at: expiresAt,
-    });
-
-    if (sharedErr) {
-      // Non-fatal — the webhook won't update this token, but bazi_claim_tokens is still valid
-      console.warn("Failed to store shared claim token:", sharedErr);
-    }
-
-    return NextResponse.json({ token });
+    return NextResponse.json({ token, productType: isChart ? "chart" : "report" });
   } catch (error) {
     console.error("init-claim error:", error);
     return NextResponse.json({ error: "Internal error" }, { status: 500 });

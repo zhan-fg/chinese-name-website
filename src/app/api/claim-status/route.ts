@@ -8,7 +8,7 @@ import { requireSupabaseAdmin, TABLES } from "@/lib/supabase";
  *
  * Polled by the frontend after Gumroad payment.
  * Primary: checks if Gumroad Ping has verified the claim token.
- * Fallback: checks if the email has recent purchases in processed_sales tables.
+ * Checks the claim token created immediately before checkout.
  */
 export async function GET(request: NextRequest) {
   try {
@@ -18,16 +18,14 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ status: "invalid" }, { status: 400 });
     }
 
-    // ── Primary: check claim token ──
     if (token) {
-      // Check bazi_claim_tokens first
       const { data: baziData } = await db
         .from(TABLES.claimTokens)
         .select("status, email, chart_id")
         .eq("token", token)
         .maybeSingle();
 
-      if (baziData && (baziData.status === "verified" || baziData.status === "claimed")) {
+      if (baziData) {
         return NextResponse.json({
           status: baziData.status,
           email: baziData.email || undefined,
@@ -35,37 +33,21 @@ export async function GET(request: NextRequest) {
         });
       }
 
-      // Check shared claim_tokens
       const { data: sharedData } = await db
         .from("claim_tokens")
-        .select("status, email")
+        .select("status, email, name_id")
         .eq("token", token)
         .maybeSingle();
 
-      if (sharedData && sharedData.status === "verified" && sharedData.email) {
-        // Sync to bazi_claim_tokens
-        await db.from(TABLES.claimTokens)
-          .update({ status: "verified", email: sharedData.email })
-          .eq("token", token)
-          .eq("status", "pending");
-
+      if (sharedData) {
         return NextResponse.json({
-          status: "verified",
-          email: sharedData.email,
-          chartId: null,
+          status: sharedData.status,
+          email: sharedData.email || undefined,
+          nameId: sharedData.name_id,
         });
       }
 
-      // Still pending or not found
-      if (!baziData && !sharedData) {
-        return NextResponse.json({ status: "not_found" }, { status: 404 });
-      }
-
-      return NextResponse.json({
-        status: (baziData || sharedData)?.status || "pending",
-        email: baziData?.email || sharedData?.email || undefined,
-        chartId: baziData?.chart_id || null,
-      });
+      return NextResponse.json({ status: "not_found" }, { status: 404 });
     }
 
     return NextResponse.json({ status: "not_found" }, { status: 404 });

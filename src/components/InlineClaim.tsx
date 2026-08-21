@@ -25,7 +25,7 @@ export default function InlineClaim({ nameId, nameData, onSuccess, onClose }: Pr
   const [email, setEmail] = useState("");
   const [error, setError] = useState("");
   const pollCount = useRef(0);
-  const maxPolls = 30; // 30 × 2s = 60s timeout
+  const maxPolls = 150; // allow up to five minutes to complete checkout
 
   // Extract display name
   const displayName = nameId.includes("-")

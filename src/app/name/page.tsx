@@ -516,6 +516,7 @@ export default function Home() {
             onShare={handleShare}
             isUnlocked={isCurrentUnlocked}
             reportUrl={GUMROAD_PRODUCTS.report.url || undefined}
+            onPaymentStarted={setInlineClaimNameId}
           />
         )}
       </div>

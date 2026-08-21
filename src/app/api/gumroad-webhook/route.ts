@@ -78,6 +78,15 @@ export async function POST(request: NextRequest) {
     if (!claimToken) {
       claimToken = body["url_params[claim_token]"] || "";
     }
+    if (!claimToken) {
+      claimToken = body.claim_token || body["custom_fields[claim_token]"] || "";
+    }
+    if (!claimToken && body.custom_fields) {
+      try {
+        const fields = JSON.parse(body.custom_fields.replace(/'/g, '"'));
+        claimToken = fields.claim_token || fields["Claim Token"] || "";
+      } catch {}
+    }
 
     // Gumroad's "Send test ping" is only a connectivity check. Acknowledge it
     // after authenticating the endpoint, but never create users or grant access.
