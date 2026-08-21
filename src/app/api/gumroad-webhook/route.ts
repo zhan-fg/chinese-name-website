@@ -79,6 +79,13 @@ export async function POST(request: NextRequest) {
       claimToken = body["url_params[claim_token]"] || "";
     }
 
+    // Gumroad's "Send test ping" is only a connectivity check. Acknowledge it
+    // after authenticating the endpoint, but never create users or grant access.
+    if (isTrue(body.test)) {
+      console.log("[webhook] acknowledged Gumroad test Ping");
+      return NextResponse.json({ ok: true, test: true });
+    }
+
     if (!saleId || !email || !Number.isSafeInteger(price) || price <= 0 || currency !== "usd") {
       return NextResponse.json({ error: "Missing required fields" }, { status: 400 });
     }
@@ -86,8 +93,7 @@ export async function POST(request: NextRequest) {
     if (
       isTrue(body.refunded) ||
       isTrue(body.disputed) ||
-      isTrue(body.chargebacked) ||
-      isTrue(body.test)
+      isTrue(body.chargebacked)
     ) {
       return NextResponse.json({ error: "Ineligible sale" }, { status: 400 });
     }
