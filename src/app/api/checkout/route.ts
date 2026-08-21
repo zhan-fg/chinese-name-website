@@ -7,14 +7,11 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Missing chartId' }, { status: 400 });
     }
 
-    const productId = process.env.GUMROAD_PRODUCT_ID;
-    if (!productId) {
-      return NextResponse.json({ error: 'GUMROAD_PRODUCT_ID not configured' }, { status: 503 });
-    }
+    const productUrl = process.env.NEXT_PUBLIC_GUMROAD_URL || 'https://zhanqiuhui.gumroad.com/l/pyzrg';
+    const checkoutUrl = new URL(productUrl);
+    checkoutUrl.searchParams.set('wanted', 'true');
 
-    const checkoutUrl = `https://app.gumroad.com/l/${productId}?wanted=true`;
-
-    return NextResponse.json({ url: checkoutUrl });
+    return NextResponse.json({ url: checkoutUrl.toString() });
   } catch (err: any) {
     console.error('[checkout] error:', err.message);
     return NextResponse.json({ error: err.message }, { status: 500 });

@@ -4,7 +4,7 @@ This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-
 
 Before deploying, copy `.env.example` to `.env.local` and configure Supabase,
 the LLM provider, Gumroad, and PayPal. Never expose the service role key or
-Gumroad access token through a `NEXT_PUBLIC_*` variable.
+the Gumroad Ping secret through a `NEXT_PUBLIC_*` variable.
 
 Apply `supabase/migrations/202608210001_p0_security.sql` before deploying this
 revision. It installs the atomic usage ledger, authenticated report ownership,
@@ -13,12 +13,14 @@ payment idempotency indexes, and revocable report sharing.
 Configure the Gumroad Ping URL as:
 
 ```text
-https://your-domain.example/api/gumroad-webhook?secret=<GUMROAD_WEBHOOK_SECRET>
+https://your-domain.example/api/gumroad-webhook?secret=<GUMROAD_PING_SECRET>
 ```
 
-The webhook does not trust the Ping request body. It fetches the sale from the
-Gumroad API and verifies product ID, price, currency, and refund/dispute state.
-Set all three Gumroad product ID variables from the Gumroad product settings.
+Generate a long random value for `GUMROAD_PING_SECRET`, save it as a server-only
+Vercel environment variable, and put the same value in the Ping URL. Gumroad
+Ping has no request-signing secret, so the endpoint also enforces the known
+product permalinks, exact USD prices, eligible sale state, and unique `sale_id`.
+No Gumroad API access token or product ID environment variables are required.
 
 Paid account and report APIs require a Supabase access token in the
 `Authorization: Bearer <token>` header. The browser uses email OTP/magic-link

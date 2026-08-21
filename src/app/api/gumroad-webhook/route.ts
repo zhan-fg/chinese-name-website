@@ -3,8 +3,22 @@ export const dynamic = "force-dynamic";
 import { NextRequest, NextResponse } from "next/server";
 import { requireSupabaseAdmin, TABLES } from "@/lib/supabase";
 import type { SupabaseClient } from "@supabase/supabase-js";
-import { verifyGumroadSale } from "@/lib/gumroad";
 import crypto from "crypto";
+
+const PRODUCTS = {
+  bazi: { permalink: "pyzrg", price: 199 },
+  report: { permalink: "kqzwc", price: 499 },
+  premium: { permalink: "uawodz", price: 999 },
+} as const;
+
+function isTrue(value: string | undefined): boolean {
+  return value === "true" || value === "1";
+}
+
+function permalinkSlug(value: string): string {
+  const normalized = value.trim().toLowerCase().replace(/\/+$/, "");
+  return normalized.split("/").pop() || "";
+}
 
 /**
  * POST /api/gumroad-webhook
@@ -23,7 +37,7 @@ import crypto from "crypto";
  */
 export async function POST(request: NextRequest) {
   try {
-    const configuredSecret = process.env.GUMROAD_WEBHOOK_SECRET;
+    const configuredSecret = process.env.GUMROAD_PING_SECRET;
     const providedSecret = request.nextUrl.searchParams.get("secret") || "";
     if (!configuredSecret || !providedSecret || configuredSecret.length !== providedSecret.length ||
         !crypto.timingSafeEqual(Buffer.from(configuredSecret), Buffer.from(providedSecret))) {
@@ -44,7 +58,12 @@ export async function POST(request: NextRequest) {
       });
     }
 
-    const saleId = body.sale_id;
+    const saleId = body.sale_id?.trim();
+    const email = body.email?.toLowerCase().trim();
+    const price = Number.parseInt(body.price || "", 10);
+    const currency = (body.currency || "").toLowerCase().trim();
+    const permalink = body.product_permalink || body.permalink || "";
+    const productName = body.product_name || "";
 
     // Extract claim_token from url_params
     let claimToken = "";
@@ -60,37 +79,31 @@ export async function POST(request: NextRequest) {
       claimToken = body["url_params[claim_token]"] || "";
     }
 
-    if (!saleId) {
+    if (!saleId || !email || !Number.isSafeInteger(price) || price <= 0 || currency !== "usd") {
       return NextResponse.json({ error: "Missing required fields" }, { status: 400 });
     }
 
-    const verifiedSale = await verifyGumroadSale(saleId);
-    if (!verifiedSale || verifiedSale.currency !== "usd") {
-      return NextResponse.json({ error: "Sale verification failed" }, { status: 403 });
-    }
-    const { email, price, permalink, productName, productId } = verifiedSale;
-
-    console.log(`[webhook] verified sale=${saleId} permalink=${permalink} claim_token=${claimToken ? claimToken.slice(0,8)+"..." : "(none)"}`);
-
-    const normalizedEmail = email.toLowerCase().trim();
-
-    // ── Detect bazi product (shared Gumroad account) ──
-    // Gumroad sends product_permalink as full URL (https://zhanqiuhui.gumroad.com/l/pyzrg)
-    // so use includes instead of exact match.
-    const baziProductId = process.env.GUMROAD_BAZI_PRODUCT_ID || "";
-    const namingReportProductId = process.env.GUMROAD_REPORT_PRODUCT_ID || "";
-    const namingPremiumProductId = process.env.GUMROAD_PREMIUM_PRODUCT_ID || "";
-    const allowedProductIds = [baziProductId, namingReportProductId, namingPremiumProductId].filter(Boolean);
-    if (!productId || !allowedProductIds.includes(productId)) {
-      return NextResponse.json({ error: "Unknown product" }, { status: 400 });
+    if (
+      isTrue(body.refunded) ||
+      isTrue(body.disputed) ||
+      isTrue(body.chargebacked) ||
+      isTrue(body.test)
+    ) {
+      return NextResponse.json({ error: "Ineligible sale" }, { status: 400 });
     }
 
-    const isBazi = productId === baziProductId;
-    if (isBazi) {
-      if (price !== 199) {
-        return NextResponse.json({ error: "Product price mismatch" }, { status: 400 });
-      }
-      return handleBaziPurchase(db, saleId, normalizedEmail, price, permalink, productName, claimToken);
+    const product = Object.entries(PRODUCTS).find(
+      ([, config]) => config.permalink === permalinkSlug(permalink) && config.price === price,
+    )?.[0] as keyof typeof PRODUCTS | undefined;
+    if (!product) {
+      return NextResponse.json({ error: "Unknown product or price mismatch" }, { status: 400 });
+    }
+
+    console.log(`[webhook] accepted sale=${saleId} product=${product} claim_token=${claimToken ? claimToken.slice(0,8)+"..." : "(none)"}`);
+
+    // Route the allowlisted product to the correct set of tables.
+    if (product === "bazi") {
+      return handleBaziPurchase(db, saleId, email, price, permalink, productName, claimToken);
     }
 
     // ── Naming products (chinese-name-website) ──
@@ -111,36 +124,33 @@ export async function POST(request: NextRequest) {
     let reportUnlocks = 0;
 
     // kqzwc = Identity Report ($4.99), uawodz = Premium ($9.99)
-    if (productId === namingReportProductId && price === 499) {
+    if (product === "report") {
       reportUnlocks = 1;
-    } else if (productId === namingPremiumProductId && price === 999) {
+    } else if (product === "premium") {
       reportUnlocks = 20;
-    } else {
-      return NextResponse.json({ error: "Product price mismatch" }, { status: 400 });
     }
 
     // Grant the purchase (naming tables: "users", NOT bazi_users)
     if (reportUnlocks > 0) {
-      await addNamingReportUnlocks(db, normalizedEmail, reportUnlocks);
+      await addNamingReportUnlocks(db, email, reportUnlocks);
       console.log(
-        `Gumroad Ping: ${reportUnlocks} report unlocks for ${normalizedEmail} (${productName})`
+        `Gumroad Ping: ${reportUnlocks} report unlocks for ${email} (${productName})`
       );
     }
 
     // Record processed sale (shared table)
     await db.from("processed_sales").insert({
       sale_id: saleId,
-      email: normalizedEmail,
+      email,
       product_permalink: permalink,
       price,
       created_at: new Date().toISOString(),
     });
 
-    // Link claim_token in BOTH tables
+    // Link the naming claim token to this verified Ping.
     if (claimToken) {
       console.log(`[webhook naming] attempting to link: ${claimToken.slice(0,8)}...`);
-      await linkTokenByValue(db, TABLES.claimTokens, claimToken, normalizedEmail);
-      await linkTokenByValue(db, "claim_tokens", claimToken, normalizedEmail);
+      await linkTokenByValue(db, "claim_tokens", claimToken, email);
     } else {
       console.log(`[webhook naming] no claim_token in ping`);
     }
