@@ -97,11 +97,26 @@ export async function POST(request: NextRequest) {
       } catch {}
     }
 
-    // Gumroad's "Send test ping" is only a connectivity check. Acknowledge it
-    // after authenticating the endpoint, but never create users or grant access.
-    if (isTrue(body.test)) {
-      console.log("[webhook] acknowledged Gumroad test Ping");
-      return NextResponse.json({ ok: true, test: true });
+    const isTestPurchase = isTrue(body.test);
+    const hasRequiredSaleFields = Boolean(
+      saleId &&
+      email &&
+      Number.isSafeInteger(price) &&
+      price > 0 &&
+      currency === "usd",
+    );
+
+    // Gumroad uses test=true for two different cases:
+    // 1. the Settings "Send test ping" connectivity probe; and
+    // 2. a complete checkout made with Gumroad's seller-only Test card.
+    // Only a complete test checkout that carries our one-time claim token may
+    // enter the normal, idempotent purchase flow. A bare connectivity probe is
+    // acknowledged without granting anything.
+    if (isTestPurchase && (!hasRequiredSaleFields || !claimToken)) {
+      console.log(
+        `[webhook] acknowledged Gumroad test Ping sale_fields=${hasRequiredSaleFields} claim_token=${Boolean(claimToken)}`,
+      );
+      return NextResponse.json({ ok: true, test: true, processed: false });
     }
 
     if (!saleId || !email || !Number.isSafeInteger(price) || price <= 0 || currency !== "usd") {
@@ -123,7 +138,9 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Unknown product or price mismatch" }, { status: 400 });
     }
 
-    console.log(`[webhook] accepted sale=${saleId} product=${product} claim_token=${claimToken ? claimToken.slice(0,8)+"..." : "(none)"}`);
+    console.log(
+      `[webhook] accepted ${isTestPurchase ? "test " : ""}sale=${saleId} product=${product} claim_token=${claimToken ? claimToken.slice(0,8)+"..." : "(none)"}`,
+    );
 
     // Route the allowlisted product to the correct set of tables.
     if (product === "bazi") {
@@ -327,3 +344,4 @@ async function linkTokenByValue(
     console.log(`[webhook] VERIFIED ${table}: ${token.slice(0,8)}... → ${email} (${count} row)`);
   }
 }
+
